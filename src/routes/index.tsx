@@ -1,81 +1,218 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  URL_STRATEGY,
+  URL_COPYWRITER,
+  API_KEY,
+  POLL_INTERVAL_MS,
+  POLL_TIMEOUT_MS,
+} from "@/config/webhooks";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-type Status = "rascunho" | "aprovado" | "copy_gerada";
+type StatusPost = "rascunho" | "aprovado" | "copy_gerada" | string;
+type StatusExec = "iniciado" | "processando" | "concluido" | "erro" | string;
+type Agente = "strategy" | "copywriter";
 
+type Cliente = { id: string; nome_empresa: string };
 type Post = {
   id: string;
-  data: string;
-  titulo: string;
-  formato: string;
-  status: Status;
+  cliente_id: string;
+  mes_referencia: string | null;
+  status: StatusPost;
+  copy_id: string | null;
+  data_post: string | null;
+  formato: string | null;
+  pilar: string | null;
+  tema: string | null;
+  ideia: string | null;
+  objetivo: string | null;
+  cta: string | null;
 };
-
-type Copy = {
+type Peca = {
   id: string;
-  postId: string;
-  titulo: string;
-  legenda: string;
-  hashtags: string;
+  calendario_id: string;
+  gancho: string | null;
+  legenda: string | null;
+  hashtags: string | null;
+  roteiro: string | null;
+  link_imagem: string | null;
+  versao: number;
+};
+type Execucao = {
+  id: string;
+  cliente_id: string;
+  agente: string;
+  status: StatusExec;
+  erro_mensagem: string | null;
+  registros_afetados: number | null;
+  iniciado_em: string;
 };
 
-const CLIENTES = [
-  { id: "villa-rosa", nome: "Villa Rosa Restaurante" },
-  { id: "atelier-nord", nome: "Atelier Nord Joalheria" },
-  { id: "casa-lume", nome: "Casa Lume Arquitetura" },
-  { id: "belmonte", nome: "Belmonte Vinhos" },
-];
+const MESES = (() => {
+  const out: string[] = [];
+  const now = new Date();
+  for (let i = -3; i <= 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    out.push(`${y}-${m}`);
+  }
+  return out;
+})();
 
-const MESES = ["2026-05", "2026-06", "2026-07", "2026-08"];
+function currentYm() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 
-const MOCK_POSTS: Record<string, Post[]> = {
-  "villa-rosa|2026-07": [
-    { id: "p1", data: "03/07", titulo: "Menu de inverno: risoto al tartufo", formato: "Carrossel", status: "copy_gerada" },
-    { id: "p2", data: "08/07", titulo: "Bastidores da nossa adega", formato: "Reels", status: "aprovado" },
-    { id: "p3", data: "12/07", titulo: "Harmonização — Barolo & queijos", formato: "Post único", status: "aprovado" },
-    { id: "p4", data: "17/07", titulo: "A história do nosso chef", formato: "Carrossel", status: "rascunho" },
-    { id: "p5", data: "22/07", titulo: "Sobremesa da semana: tiramisù", formato: "Reels", status: "rascunho" },
-    { id: "p6", data: "27/07", titulo: "Reserva para o jantar de gala", formato: "Post único", status: "rascunho" },
-  ],
-  "atelier-nord|2026-07": [
-    { id: "a1", data: "02/07", titulo: "Coleção Aurora — anéis solitário", formato: "Carrossel", status: "aprovado" },
-    { id: "a2", data: "09/07", titulo: "Cravação à mão: o método", formato: "Reels", status: "rascunho" },
-    { id: "a3", data: "16/07", titulo: "Ouro 18k reciclado", formato: "Post único", status: "rascunho" },
-  ],
-};
+/* ---------------- Data hooks ---------------- */
 
-const MOCK_COPIES: Record<string, Copy[]> = {
-  "villa-rosa|2026-07": [
-    {
-      id: "c1",
-      postId: "p1",
-      titulo: "Risoto al tartufo",
-      legenda:
-        "O inverno pede pratos que aquecem lentamente. Nosso risoto al tartufo é preparado com arroz carnaroli, manteiga italiana e lascas generosas de trufa negra fresca.",
-      hashtags: "#villarosa #altaculinaria #tartufo #invernogastronomico",
+function useClientes() {
+  return useQuery({
+    queryKey: ["clientes"],
+    queryFn: async (): Promise<Cliente[]> => {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id, nome_empresa")
+        .eq("status", "ativo")
+        .order("nome_empresa", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Cliente[];
     },
-    {
-      id: "c2",
-      postId: "p2",
-      titulo: "Nossa adega",
-      legenda:
-        "Mais de 400 rótulos, selecionados um a um. Um passeio silencioso pela adega da Villa Rosa — onde cada garrafa espera a noite certa.",
-      hashtags: "#adega #vinhos #villarosa #bastidores",
-    },
-  ],
-};
+  });
+}
 
-function StatusBadge({ status }: { status: Status }) {
-  const map: Record<Status, { label: string; className: string }> = {
+function usePosts(clienteId: string | null, mes: string) {
+  return useQuery({
+    queryKey: ["calendario_conteudo", clienteId, mes],
+    enabled: !!clienteId && !!mes,
+    queryFn: async (): Promise<Post[]> => {
+      const { data, error } = await supabase
+        .from("calendario_conteudo")
+        .select(
+          "id, cliente_id, mes_referencia, status, copy_id, data_post, formato, pilar, tema, ideia, objetivo, cta",
+        )
+        .eq("cliente_id", clienteId!)
+        .eq("mes_referencia", mes)
+        .order("data_post", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Post[];
+    },
+  });
+}
+
+function usePecas(calendarioIds: string[]) {
+  return useQuery({
+    queryKey: ["pecas_conteudo", [...calendarioIds].sort()],
+    enabled: calendarioIds.length > 0,
+    queryFn: async (): Promise<Peca[]> => {
+      const { data, error } = await supabase
+        .from("pecas_conteudo")
+        .select(
+          "id, calendario_id, gancho, legenda, hashtags, roteiro, link_imagem, versao",
+        )
+        .in("calendario_id", calendarioIds)
+        .order("versao", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Peca[];
+    },
+  });
+}
+
+function useExecucaoEmAndamento(clienteId: string | null, agente: Agente) {
+  return useQuery({
+    queryKey: ["execucao_em_andamento", clienteId, agente],
+    enabled: !!clienteId,
+    refetchInterval: 5000,
+    queryFn: async (): Promise<Execucao | null> => {
+      const { data, error } = await supabase
+        .from("execucoes")
+        .select(
+          "id, cliente_id, agente, status, erro_mensagem, registros_afetados, iniciado_em",
+        )
+        .eq("cliente_id", clienteId!)
+        .eq("agente", agente)
+        .in("status", ["iniciado", "processando"])
+        .order("iniciado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as Execucao | null;
+    },
+  });
+}
+
+/* ---------------- Webhooks & polling ---------------- */
+
+async function dispararWebhook(
+  url: string,
+  clienteId: string,
+  mes: string,
+): Promise<{ ok: true; execucao_id: string } | { ok: false; motivo: string; conflict?: boolean }> {
+  if (!url || url === "COLE_AQUI") {
+    return {
+      ok: false,
+      motivo: "URL do webhook não configurada em src/config/webhooks.ts",
+    };
+  }
+  let resp: Response;
+  try {
+    resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": API_KEY,
+      },
+      body: JSON.stringify({ cliente_id: clienteId, mes }),
+    });
+  } catch (e: any) {
+    return { ok: false, motivo: `Falha de rede: ${e?.message ?? String(e)}` };
+  }
+  let body: any = null;
+  try {
+    body = await resp.json();
+  } catch {
+    /* ignore */
+  }
+  if (resp.status === 409) {
+    return {
+      ok: false,
+      conflict: true,
+      motivo: body?.motivo ?? "Conflito: já existe execução em andamento.",
+    };
+  }
+  if (!resp.ok) {
+    return {
+      ok: false,
+      motivo: body?.motivo ?? `Erro ${resp.status} do webhook.`,
+    };
+  }
+  if (body?.ok && body.execucao_id) {
+    return { ok: true, execucao_id: body.execucao_id };
+  }
+  return { ok: false, motivo: "Resposta inesperada do webhook." };
+}
+
+type PollState =
+  | { kind: "idle" }
+  | { kind: "running"; execId: string; startedAt: number; slow: boolean }
+  | { kind: "error"; message: string }
+  | { kind: "done" };
+
+/* ---------------- UI atoms ---------------- */
+
+function StatusBadge({ status }: { status: StatusPost }) {
+  const map: Record<string, { label: string; className: string }> = {
     rascunho: { label: "Rascunho", className: "bg-graphite text-cream" },
     aprovado: { label: "Aprovado", className: "bg-gold text-graphite" },
     copy_gerada: { label: "Copy gerada", className: "bg-bordeaux text-cream" },
   };
-  const v = map[status];
+  const v = map[status] ?? { label: status, className: "bg-muted text-foreground" };
   return (
     <span
       className={`inline-flex items-center px-3 py-1 text-xs uppercase tracking-[0.18em] ${v.className}`}
@@ -125,6 +262,29 @@ function PrimaryButton({
   children,
   onClick,
   disabled,
+  loading,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled || loading}
+      className="inline-flex items-center gap-2 bg-gold text-graphite px-6 py-3 uppercase tracking-[0.22em] text-sm border border-[color:var(--gold)] hover:bg-transparent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      style={{ fontFamily: "var(--font-body)", fontWeight: 600 }}
+    >
+      {loading ? "Aguarde…" : children}
+    </button>
+  );
+}
+
+function GhostButton({
+  children,
+  onClick,
+  disabled,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
@@ -134,7 +294,7 @@ function PrimaryButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex items-center gap-2 bg-gold text-graphite px-6 py-3 uppercase tracking-[0.22em] text-sm border border-[color:var(--gold)] hover:bg-transparent hover:text-graphite transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      className="inline-flex items-center gap-2 px-5 py-2 uppercase tracking-[0.22em] text-xs border border-graphite text-graphite hover:bg-graphite hover:text-cream transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       style={{ fontFamily: "var(--font-body)", fontWeight: 600 }}
     >
       {children}
@@ -145,7 +305,6 @@ function PrimaryButton({
 function Sidebar() {
   return (
     <aside className="w-64 shrink-0 bg-graphite text-cream min-h-screen flex flex-col">
-      {/* Reserva para logo */}
       <div className="h-32 border-b border-cream/10 flex items-center justify-center px-6">
         <div className="w-full h-16 border border-dashed border-cream/25 flex items-center justify-center">
           <span
@@ -156,7 +315,6 @@ function Sidebar() {
           </span>
         </div>
       </div>
-
       <nav className="flex-1 px-6 py-8 space-y-1">
         {[
           { label: "Painel", active: true },
@@ -179,7 +337,6 @@ function Sidebar() {
           </a>
         ))}
       </nav>
-
       <div className="px-6 py-6 border-t border-cream/10">
         <p
           className="text-xs uppercase tracking-[0.28em] text-cream/40"
@@ -193,27 +350,526 @@ function Sidebar() {
   );
 }
 
-function Dashboard() {
-  const [clienteId, setClienteId] = useState(CLIENTES[0].id);
-  const [mes, setMes] = useState("2026-07");
+/* ---------------- Pipeline stages ---------------- */
 
-  const key = `${clienteId}|${mes}`;
-  const posts = MOCK_POSTS[key] ?? [];
-  const copies = MOCK_COPIES[key] ?? [];
-  const cliente = CLIENTES.find((c) => c.id === clienteId)!;
+function usePoller(
+  clienteId: string | null,
+  agente: Agente,
+  execId: string | null,
+  onDone: () => void,
+) {
+  const [slow, setSlow] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [finished, setFinished] = useState(false);
+  const startedAtRef = useRef<number>(0);
 
-  const calendarioGerado = posts.length > 0;
-  const todosAprovados = useMemo(
-    () => calendarioGerado && posts.every((p) => p.status === "aprovado" || p.status === "copy_gerada"),
-    [posts, calendarioGerado],
+  useEffect(() => {
+    if (!execId || !clienteId) return;
+    setSlow(false);
+    setErrorMsg(null);
+    setFinished(false);
+    startedAtRef.current = Date.now();
+
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled) return;
+      const { data, error } = await supabase
+        .from("execucoes")
+        .select("status, erro_mensagem")
+        .eq("id", execId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        setErrorMsg(error.message);
+        return;
+      }
+      const s = (data?.status ?? "") as StatusExec;
+      if (s === "concluido") {
+        setFinished(true);
+        onDone();
+        return;
+      }
+      if (s === "erro") {
+        setErrorMsg(data?.erro_mensagem ?? "Erro na execução.");
+        return;
+      }
+      if (Date.now() - startedAtRef.current > POLL_TIMEOUT_MS) {
+        setSlow(true);
+      }
+      setTimeout(tick, POLL_INTERVAL_MS);
+    };
+    const t = setTimeout(tick, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [execId, clienteId, agente]);
+
+  return { slow, errorMsg, finished, setErrorMsg };
+}
+
+function CalendarioCard({
+  clienteId,
+  mes,
+  posts,
+  loading,
+}: {
+  clienteId: string | null;
+  mes: string;
+  posts: Post[];
+  loading: boolean;
+}) {
+  const qc = useQueryClient();
+  const execEmAndamento = useExecucaoEmAndamento(clienteId, "strategy");
+  const [execId, setExecId] = useState<string | null>(null);
+  const [webhookErr, setWebhookErr] = useState<string | null>(null);
+
+  const { slow, errorMsg, finished, setErrorMsg } = usePoller(
+    clienteId,
+    "strategy",
+    execId,
+    () => {
+      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+      qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "strategy"] });
+    },
   );
+
+  const gerar = useMutation({
+    mutationFn: async () => {
+      if (!clienteId) throw new Error("Selecione um cliente.");
+      const r = await dispararWebhook(URL_STRATEGY, clienteId, mes);
+      if (!r.ok) throw new Error(r.motivo);
+      return r.execucao_id;
+    },
+    onSuccess: (id) => {
+      setWebhookErr(null);
+      setExecId(id);
+      qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "strategy"] });
+    },
+    onError: (e: Error) => setWebhookErr(e.message),
+  });
+
+  const jaExisteCalendario = posts.length > 0;
+  const rodando = !!execEmAndamento.data || (!!execId && !finished && !errorMsg);
+  const disabled = !clienteId || rodando || jaExisteCalendario;
+
+  return (
+    <StageCard
+      number="I"
+      title="Calendário"
+      subtitle="Pauta editorial gerada pelo agente de IA."
+    >
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <PrimaryButton
+          onClick={() => gerar.mutate()}
+          disabled={disabled}
+          loading={gerar.isPending}
+        >
+          Gerar calendário
+        </PrimaryButton>
+        {rodando && (
+          <span className="italic text-muted-foreground text-sm">
+            Gerando calendário…
+          </span>
+        )}
+      </div>
+
+      {webhookErr && (
+        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">
+          {webhookErr}
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="mb-4 p-3 border border-bordeaux text-bordeaux text-sm flex items-center justify-between gap-3">
+          <span>Erro: {errorMsg}</span>
+          <GhostButton
+            onClick={() => {
+              setErrorMsg(null);
+              setExecId(null);
+              gerar.mutate();
+            }}
+          >
+            Tentar de novo
+          </GhostButton>
+        </div>
+      )}
+
+      {slow && !errorMsg && !finished && (
+        <div className="mb-4 p-3 border border-gold text-graphite text-sm flex items-center justify-between gap-3">
+          <span>Está demorando mais que o esperado.</span>
+          <GhostButton
+            onClick={() =>
+              qc.invalidateQueries({
+                queryKey: ["calendario_conteudo", clienteId, mes],
+              })
+            }
+          >
+            Atualizar
+          </GhostButton>
+        </div>
+      )}
+
+      {loading ? (
+        <p className="italic text-muted-foreground">Carregando…</p>
+      ) : posts.length === 0 ? (
+        <p className="italic text-muted-foreground">
+          Nenhum calendário gerado ainda para este período.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {posts.map((p) => (
+            <li key={p.id} className="py-4 flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p
+                  className="text-xs uppercase tracking-[0.22em] text-bordeaux"
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  {p.data_post
+                    ? new Date(p.data_post).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                      })
+                    : "s/ data"}
+                  {p.formato ? ` · ${p.formato}` : ""}
+                  {p.pilar ? ` · ${p.pilar}` : ""}
+                </p>
+                <p className="mt-1 text-lg text-foreground leading-snug">
+                  {p.tema ?? p.ideia ?? "(sem tema)"}
+                </p>
+                {p.objetivo && (
+                  <p className="mt-1 text-sm italic text-muted-foreground">
+                    Objetivo: {p.objetivo}
+                  </p>
+                )}
+                {p.cta && (
+                  <p className="mt-1 text-sm italic text-muted-foreground">
+                    CTA: {p.cta}
+                  </p>
+                )}
+              </div>
+              <StatusBadge status={p.status} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </StageCard>
+  );
+}
+
+function AprovacaoCard({
+  clienteId,
+  mes,
+  posts,
+}: {
+  clienteId: string | null;
+  mes: string;
+  posts: Post[];
+}) {
+  const qc = useQueryClient();
+  const [err, setErr] = useState<string | null>(null);
+
+  const rascunhos = posts.filter((p) => p.status === "rascunho").length;
+  const aprovados = posts.filter((p) => p.status !== "rascunho").length;
+
+  const aprovar = useMutation({
+    mutationFn: async () => {
+      if (!clienteId) throw new Error("Selecione um cliente.");
+      const { error } = await supabase
+        .from("calendario_conteudo")
+        .update({ status: "aprovado" })
+        .eq("cliente_id", clienteId)
+        .eq("mes_referencia", mes)
+        .eq("status", "rascunho");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setErr(null);
+      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+    },
+    onError: (e: Error) => setErr(e.message),
+  });
+
+  const disabled = !clienteId || rascunhos === 0;
+
+  return (
+    <StageCard
+      number="II"
+      title="Aprovação"
+      subtitle="Revisão editorial antes da produção das peças."
+    >
+      <div className="mb-6">
+        <PrimaryButton
+          onClick={() => aprovar.mutate()}
+          disabled={disabled}
+          loading={aprovar.isPending}
+        >
+          Aprovar calendário
+        </PrimaryButton>
+      </div>
+
+      {err && (
+        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{err}</div>
+      )}
+
+      {posts.length > 0 ? (
+        <div className="space-y-4">
+          <div className="flex items-baseline justify-between border-b border-border pb-3">
+            <span
+              className="text-xs uppercase tracking-[0.24em] text-muted-foreground"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              Total de peças
+            </span>
+            <span className="text-2xl text-foreground">{posts.length}</span>
+          </div>
+          <div className="flex items-baseline justify-between border-b border-border pb-3">
+            <span
+              className="text-xs uppercase tracking-[0.24em] text-muted-foreground"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              Aprovadas
+            </span>
+            <span className="text-2xl text-gold">{aprovados}</span>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span
+              className="text-xs uppercase tracking-[0.24em] text-muted-foreground"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              Em rascunho
+            </span>
+            <span className="text-2xl text-bordeaux">{rascunhos}</span>
+          </div>
+          {rascunhos > 0 && (
+            <p className="italic text-muted-foreground mt-4 text-sm">
+              A aprovação move todas as peças em rascunho deste cliente/mês para
+              "aprovado".
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="italic text-muted-foreground">
+          Gere o calendário antes de prosseguir.
+        </p>
+      )}
+    </StageCard>
+  );
+}
+
+function CopyCard({
+  clienteId,
+  mes,
+  posts,
+}: {
+  clienteId: string | null;
+  mes: string;
+  posts: Post[];
+}) {
+  const qc = useQueryClient();
+  const execEmAndamento = useExecucaoEmAndamento(clienteId, "copywriter");
+  const [execId, setExecId] = useState<string | null>(null);
+  const [webhookErr, setWebhookErr] = useState<string | null>(null);
+
+  const calendarioIds = useMemo(() => posts.map((p) => p.id), [posts]);
+  const pecas = usePecas(calendarioIds);
+
+  const aprovados = posts.filter((p) => p.status === "aprovado").length;
+
+  const { slow, errorMsg, finished, setErrorMsg } = usePoller(
+    clienteId,
+    "copywriter",
+    execId,
+    () => {
+      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+      qc.invalidateQueries({ queryKey: ["pecas_conteudo"] });
+      qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "copywriter"] });
+    },
+  );
+
+  const gerar = useMutation({
+    mutationFn: async () => {
+      if (!clienteId) throw new Error("Selecione um cliente.");
+      const r = await dispararWebhook(URL_COPYWRITER, clienteId, mes);
+      if (!r.ok) throw new Error(r.motivo);
+      return r.execucao_id;
+    },
+    onSuccess: (id) => {
+      setWebhookErr(null);
+      setExecId(id);
+      qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "copywriter"] });
+    },
+    onError: (e: Error) => setWebhookErr(e.message),
+  });
+
+  const rodando = !!execEmAndamento.data || (!!execId && !finished && !errorMsg);
+  const disabled = !clienteId || rodando || aprovados === 0;
+
+  const pecasPorPost = useMemo(() => {
+    const map: Record<string, Peca[]> = {};
+    for (const p of pecas.data ?? []) {
+      (map[p.calendario_id] ||= []).push(p);
+    }
+    return map;
+  }, [pecas.data]);
+
+  return (
+    <StageCard
+      number="III"
+      title="Copy"
+      subtitle="Textos finais escritos pelo agente."
+    >
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <PrimaryButton
+          onClick={() => gerar.mutate()}
+          disabled={disabled}
+          loading={gerar.isPending}
+        >
+          Gerar copy
+        </PrimaryButton>
+        {rodando && (
+          <span className="italic text-muted-foreground text-sm">
+            Gerando copy…
+          </span>
+        )}
+      </div>
+
+      {webhookErr && (
+        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">
+          {webhookErr}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="mb-4 p-3 border border-bordeaux text-bordeaux text-sm flex items-center justify-between gap-3">
+          <span>Erro: {errorMsg}</span>
+          <GhostButton
+            onClick={() => {
+              setErrorMsg(null);
+              setExecId(null);
+              gerar.mutate();
+            }}
+          >
+            Tentar de novo
+          </GhostButton>
+        </div>
+      )}
+      {slow && !errorMsg && !finished && (
+        <div className="mb-4 p-3 border border-gold text-graphite text-sm flex items-center justify-between gap-3">
+          <span>Está demorando mais que o esperado.</span>
+          <GhostButton
+            onClick={() =>
+              qc.invalidateQueries({ queryKey: ["pecas_conteudo"] })
+            }
+          >
+            Atualizar
+          </GhostButton>
+        </div>
+      )}
+
+      {(pecas.data ?? []).length === 0 ? (
+        <p className="italic text-muted-foreground">
+          {aprovados === 0
+            ? "Aprove o calendário antes de gerar as copies."
+            : "Nenhuma copy gerada ainda."}
+        </p>
+      ) : (
+        <ul className="space-y-6">
+          {posts.map((post) => {
+            const listas = pecasPorPost[post.id];
+            if (!listas || listas.length === 0) return null;
+            const peca = listas[0];
+            return (
+              <li key={post.id} className="border-l-2 border-gold pl-4">
+                <p
+                  className="text-xs uppercase tracking-[0.22em] text-bordeaux"
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  {post.data_post
+                    ? new Date(post.data_post).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                      })
+                    : "s/ data"}
+                  {post.formato ? ` · ${post.formato}` : ""} · v{peca.versao}
+                </p>
+                <h3 className="mt-1 text-xl text-foreground">
+                  {peca.gancho ?? post.tema ?? "(sem gancho)"}
+                </h3>
+                {peca.legenda && (
+                  <p className="mt-2 text-foreground/85 leading-relaxed italic whitespace-pre-line">
+                    “{peca.legenda}”
+                  </p>
+                )}
+                {peca.roteiro && (
+                  <p className="mt-2 text-sm text-foreground/70 whitespace-pre-line">
+                    <span
+                      className="uppercase tracking-[0.22em] text-xs text-muted-foreground"
+                      style={{ fontFamily: "var(--font-body)" }}
+                    >
+                      Roteiro:{" "}
+                    </span>
+                    {peca.roteiro}
+                  </p>
+                )}
+                {peca.hashtags && (
+                  <p
+                    className="mt-3 text-xs tracking-wider text-muted-foreground"
+                    style={{ fontFamily: "var(--font-body)" }}
+                  >
+                    {peca.hashtags}
+                  </p>
+                )}
+                {peca.link_imagem && (
+                  <a
+                    href={peca.link_imagem}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-block text-xs uppercase tracking-[0.22em] text-gold hover:underline"
+                    style={{ fontFamily: "var(--font-body)" }}
+                  >
+                    Ver imagem →
+                  </a>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </StageCard>
+  );
+}
+
+/* ---------------- Dashboard ---------------- */
+
+function Dashboard() {
+  const clientes = useClientes();
+  const [clienteId, setClienteId] = useState<string | null>(null);
+  const [mes, setMes] = useState<string>(currentYm());
+
+  // Auto-select first client
+  useEffect(() => {
+    if (!clienteId && clientes.data && clientes.data.length > 0) {
+      setClienteId(clientes.data[0].id);
+    }
+  }, [clientes.data, clienteId]);
+
+  const postsQ = usePosts(clienteId, mes);
+  const posts = postsQ.data ?? [];
+  const cliente = clientes.data?.find((c) => c.id === clienteId);
+
+  const hoje = new Date().toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   return (
     <div className="flex min-h-screen">
       <Sidebar />
 
       <main className="flex-1 min-w-0">
-        {/* Top bar */}
         <div className="bg-graphite text-cream">
           <div className="px-10 py-5 flex items-center justify-between">
             <div>
@@ -229,13 +885,12 @@ function Dashboard() {
               className="text-sm italic text-cream/60"
               style={{ fontFamily: "var(--font-body)" }}
             >
-              quarta-feira, 15 de julho de 2026
+              {hoje}
             </p>
           </div>
         </div>
 
         <div className="px-10 py-10 max-w-[1400px]">
-          {/* Filtros */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
             <div>
               <label
@@ -245,17 +900,27 @@ function Dashboard() {
                 Cliente
               </label>
               <select
-                value={clienteId}
-                onChange={(e) => setClienteId(e.target.value)}
+                value={clienteId ?? ""}
+                onChange={(e) => setClienteId(e.target.value || null)}
+                disabled={clientes.isLoading}
                 className="w-full bg-card border border-border px-4 py-3 text-lg text-foreground focus:outline-none focus:border-gold"
                 style={{ fontFamily: "var(--font-body)" }}
               >
-                {CLIENTES.map((c) => (
+                {clientes.isLoading && <option>Carregando…</option>}
+                {!clientes.isLoading && (clientes.data?.length ?? 0) === 0 && (
+                  <option>Nenhum cliente ativo</option>
+                )}
+                {clientes.data?.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.nome}
+                    {c.nome_empresa}
                   </option>
                 ))}
               </select>
+              {clientes.error && (
+                <p className="mt-2 text-xs text-bordeaux">
+                  {(clientes.error as Error).message}
+                </p>
+              )}
             </div>
             <div>
               <label
@@ -288,142 +953,23 @@ function Dashboard() {
             >
               Cliente selecionado
             </p>
-            <h2 className="mt-1 text-4xl text-foreground">{cliente.nome}</h2>
-            <p className="mt-1 italic text-muted-foreground">Referência editorial — {mes}</p>
+            <h2 className="mt-1 text-4xl text-foreground">
+              {cliente?.nome_empresa ?? "—"}
+            </h2>
+            <p className="mt-1 italic text-muted-foreground">
+              Referência editorial — {mes}
+            </p>
           </div>
 
-          {/* Pipeline */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Etapa 1 */}
-            <StageCard
-              number="I"
-              title="Calendário"
-              subtitle="Pauta editorial gerada pelo agente de IA."
-            >
-              <div className="mb-6">
-                <PrimaryButton>Gerar calendário</PrimaryButton>
-              </div>
-
-              {calendarioGerado ? (
-                <ul className="divide-y divide-border">
-                  {posts.map((p) => (
-                    <li key={p.id} className="py-4 flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p
-                          className="text-xs uppercase tracking-[0.22em] text-bordeaux"
-                          style={{ fontFamily: "var(--font-body)" }}
-                        >
-                          {p.data} · {p.formato}
-                        </p>
-                        <p className="mt-1 text-lg text-foreground leading-snug">{p.titulo}</p>
-                      </div>
-                      <StatusBadge status={p.status} />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="italic text-muted-foreground">
-                  Nenhum calendário gerado ainda para este período.
-                </p>
-              )}
-            </StageCard>
-
-            {/* Etapa 2 */}
-            <StageCard
-              number="II"
-              title="Aprovação"
-              subtitle="Revisão editorial antes da produção das peças."
-            >
-              <div className="mb-6">
-                <PrimaryButton disabled={!calendarioGerado}>Aprovar calendário</PrimaryButton>
-              </div>
-
-              {calendarioGerado ? (
-                <div className="space-y-4">
-                  <div className="flex items-baseline justify-between border-b border-border pb-3">
-                    <span
-                      className="text-xs uppercase tracking-[0.24em] text-muted-foreground"
-                      style={{ fontFamily: "var(--font-body)" }}
-                    >
-                      Total de peças
-                    </span>
-                    <span className="text-2xl text-foreground">{posts.length}</span>
-                  </div>
-                  <div className="flex items-baseline justify-between border-b border-border pb-3">
-                    <span
-                      className="text-xs uppercase tracking-[0.24em] text-muted-foreground"
-                      style={{ fontFamily: "var(--font-body)" }}
-                    >
-                      Aprovadas
-                    </span>
-                    <span className="text-2xl text-gold">
-                      {posts.filter((p) => p.status !== "rascunho").length}
-                    </span>
-                  </div>
-                  <div className="flex items-baseline justify-between">
-                    <span
-                      className="text-xs uppercase tracking-[0.24em] text-muted-foreground"
-                      style={{ fontFamily: "var(--font-body)" }}
-                    >
-                      Em rascunho
-                    </span>
-                    <span className="text-2xl text-bordeaux">
-                      {posts.filter((p) => p.status === "rascunho").length}
-                    </span>
-                  </div>
-
-                  {!todosAprovados && (
-                    <p className="italic text-muted-foreground mt-4 text-sm">
-                      Aguardando aprovação de todas as peças em rascunho.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="italic text-muted-foreground">
-                  Gere o calendário antes de prosseguir.
-                </p>
-              )}
-            </StageCard>
-
-            {/* Etapa 3 */}
-            <StageCard
-              number="III"
-              title="Copy"
-              subtitle="Textos finais escritos pelo agente."
-            >
-              <div className="mb-6">
-                <PrimaryButton disabled={!calendarioGerado}>Gerar copy</PrimaryButton>
-              </div>
-
-              {copies.length > 0 ? (
-                <ul className="space-y-6">
-                  {copies.map((c) => (
-                    <li key={c.id} className="border-l-2 border-gold pl-4">
-                      <p
-                        className="text-xs uppercase tracking-[0.22em] text-bordeaux"
-                        style={{ fontFamily: "var(--font-body)" }}
-                      >
-                        Peça · {c.postId}
-                      </p>
-                      <h3 className="mt-1 text-xl text-foreground">{c.titulo}</h3>
-                      <p className="mt-2 text-foreground/85 leading-relaxed italic">
-                        “{c.legenda}”
-                      </p>
-                      <p
-                        className="mt-3 text-xs tracking-wider text-muted-foreground"
-                        style={{ fontFamily: "var(--font-body)" }}
-                      >
-                        {c.hashtags}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="italic text-muted-foreground">
-                  Nenhuma copy gerada ainda.
-                </p>
-              )}
-            </StageCard>
+            <CalendarioCard
+              clienteId={clienteId}
+              mes={mes}
+              posts={posts}
+              loading={postsQ.isLoading}
+            />
+            <AprovacaoCard clienteId={clienteId} mes={mes} posts={posts} />
+            <CopyCard clienteId={clienteId} mes={mes} posts={posts} />
           </div>
 
           <GoldRule />
