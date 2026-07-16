@@ -1,10 +1,5 @@
-// Configuração dos webhooks n8n.
-// Substitua os valores abaixo pelas URLs reais do seu n8n e a API key compartilhada.
-// Este é o único lugar que precisa ser editado para trocar os endpoints.
-
-export const URL_STRATEGY = "COLE_AQUI";
-export const URL_COPYWRITER = "COLE_AQUI";
-export const API_KEY = "COLE_AQUI";
+// Configuração de polling para a tabela `execucoes`.
+// Os disparos de agentes são feitos pela Edge Function `disparar-agente`.
 
 // Tempo máximo de polling em milissegundos (2 minutos) antes de mostrar
 // o aviso "está demorando mais que o esperado".
