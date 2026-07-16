@@ -787,7 +787,7 @@ function CopyCard({
   const gerar = useMutation({
     mutationFn: async () => {
       if (!clienteId) throw new Error("Selecione um cliente.");
-      const r = await dispararWebhook(URL_COPYWRITER, clienteId, mes);
+      const r = await dispararAgente("copywriter", clienteId, mes);
       if (!r.ok) throw new Error(r.motivo);
       return r.execucao_id;
     },
