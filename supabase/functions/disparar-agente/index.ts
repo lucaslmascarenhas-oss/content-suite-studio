@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": apiKey },
-        body: JSON.stringify({ cliente_id, mes }),
+        body: JSON.stringify({ cliente_id, nome_empresa: cliente.nome_empresa, mes }),
       });
     } catch (e) {
       return json({ ok: false, motivo: `Falha ao contatar o n8n: ${(e as Error).message}` }, 200);
