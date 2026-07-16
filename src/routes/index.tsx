@@ -477,6 +477,13 @@ function Sidebar() {
           Painel Interno
         </p>
         <p className="mt-1 text-sm text-cream/70 italic">Uso pessoal — v1</p>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="mt-4 text-xs uppercase tracking-[0.28em] text-cream/50 hover:text-gold transition-colors"
+          style={{ fontFamily: "var(--font-body)" }}
+        >
+          Sair
+        </button>
       </div>
     </aside>
   );
