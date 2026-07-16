@@ -534,7 +534,7 @@ function CalendarioCard({
   const gerar = useMutation({
     mutationFn: async () => {
       if (!clienteId) throw new Error("Selecione um cliente.");
-      const r = await dispararWebhook(URL_STRATEGY, clienteId, mes);
+      const r = await dispararAgente("strategy", clienteId, mes);
       if (!r.ok) throw new Error(r.motivo);
       return r.execucao_id;
     },
