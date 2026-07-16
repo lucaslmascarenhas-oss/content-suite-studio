@@ -40,6 +40,13 @@ Deno.serve(async (req) => {
     if (!url) return json({ ok: false, motivo: `Agente desconhecido: ${agente}` }, 400);
     if (!cliente_id || !mes) return json({ ok: false, motivo: "cliente_id e mes são obrigatórios." }, 400);
 
+    const { data: cliente, error: cliErr } = await supabase
+      .from("clientes")
+      .select("nome_empresa")
+      .eq("id", cliente_id)
+      .single();
+    if (cliErr || !cliente) return json({ ok: false, motivo: "Cliente não encontrado." }, 400);
+
     const apiKey = Deno.env.get("N8N_API_KEY");
     if (!apiKey) return json({ ok: false, motivo: "N8N_API_KEY não configurada." }, 500);
 
