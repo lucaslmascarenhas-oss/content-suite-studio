@@ -2,13 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  URL_STRATEGY,
-  URL_COPYWRITER,
-  API_KEY,
-  POLL_INTERVAL_MS,
-  POLL_TIMEOUT_MS,
-} from "@/config/webhooks";
+import { POLL_INTERVAL_MS, POLL_TIMEOUT_MS } from "@/config/webhooks";
 
 export const Route = createFileRoute("/")({
   component: DashboardGate,
@@ -281,53 +275,16 @@ function useExecucaoEmAndamento(clienteId: string | null, agente: Agente) {
 
 /* ---------------- Webhooks & polling ---------------- */
 
-async function dispararWebhook(
-  url: string,
+async function dispararAgente(
+  agente: "strategy" | "copywriter" | "design",
   clienteId: string,
   mes: string,
 ): Promise<{ ok: true; execucao_id: string } | { ok: false; motivo: string; conflict?: boolean }> {
-  if (!url || url === "COLE_AQUI") {
-    return {
-      ok: false,
-      motivo: "URL do webhook não configurada em src/config/webhooks.ts",
-    };
-  }
-  let resp: Response;
-  try {
-    resp = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": API_KEY,
-      },
-      body: JSON.stringify({ cliente_id: clienteId, mes }),
-    });
-  } catch (e: any) {
-    return { ok: false, motivo: `Falha de rede: ${e?.message ?? String(e)}` };
-  }
-  let body: any = null;
-  try {
-    body = await resp.json();
-  } catch {
-    /* ignore */
-  }
-  if (resp.status === 409) {
-    return {
-      ok: false,
-      conflict: true,
-      motivo: body?.motivo ?? "Conflito: já existe execução em andamento.",
-    };
-  }
-  if (!resp.ok) {
-    return {
-      ok: false,
-      motivo: body?.motivo ?? `Erro ${resp.status} do webhook.`,
-    };
-  }
-  if (body?.ok && body.execucao_id) {
-    return { ok: true, execucao_id: body.execucao_id };
-  }
-  return { ok: false, motivo: "Resposta inesperada do webhook." };
+  const { data, error } = await supabase.functions.invoke("disparar-agente", {
+    body: { agente, cliente_id: clienteId, mes },
+  });
+  if (error) return { ok: false, motivo: `Falha ao chamar a função: ${error.message}` };
+  return data as { ok: true; execucao_id: string } | { ok: false; motivo: string; conflict?: boolean };
 }
 
 type PollState =
@@ -577,7 +534,7 @@ function CalendarioCard({
   const gerar = useMutation({
     mutationFn: async () => {
       if (!clienteId) throw new Error("Selecione um cliente.");
-      const r = await dispararWebhook(URL_STRATEGY, clienteId, mes);
+      const r = await dispararAgente("strategy", clienteId, mes);
       if (!r.ok) throw new Error(r.motivo);
       return r.execucao_id;
     },
@@ -830,7 +787,7 @@ function CopyCard({
   const gerar = useMutation({
     mutationFn: async () => {
       if (!clienteId) throw new Error("Selecione um cliente.");
-      const r = await dispararWebhook(URL_COPYWRITER, clienteId, mes);
+      const r = await dispararAgente("copywriter", clienteId, mes);
       if (!r.ok) throw new Error(r.motivo);
       return r.execucao_id;
     },
