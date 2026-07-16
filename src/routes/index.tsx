@@ -11,8 +11,140 @@ import {
 } from "@/config/webhooks";
 
 export const Route = createFileRoute("/")({
-  component: Dashboard,
+  component: DashboardGate,
+  ssr: false,
 });
+
+function DashboardGate() {
+  const [ready, setReady] = useState(false);
+  const [session, setSession] = useState<unknown>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-cream">
+        <p
+          className="text-sm italic text-graphite/60"
+          style={{ fontFamily: "var(--font-body)" }}
+        >
+          Carregando…
+        </p>
+      </div>
+    );
+  }
+
+  if (!session) return <LoginScreen />;
+  return <Dashboard />;
+}
+
+function LoginScreen() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setError(error.message);
+    setLoading(false);
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-cream px-6">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-10">
+          <p
+            className="text-xs uppercase tracking-[0.4em] text-bordeaux"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            Painel Editorial
+          </p>
+          <h1 className="mt-3 text-4xl text-graphite">Acesso restrito</h1>
+          <div className="mx-auto mt-6 h-px w-16 bg-gold" />
+          <p
+            className="mt-6 text-sm italic text-graphite/60"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            Entre com suas credenciais para acessar a produção.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label
+              className="block text-xs uppercase tracking-[0.28em] text-bordeaux mb-2"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              Email
+            </label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-card border border-border px-4 py-3 text-lg text-foreground focus:outline-none focus:border-gold"
+              style={{ fontFamily: "var(--font-body)" }}
+            />
+          </div>
+          <div>
+            <label
+              className="block text-xs uppercase tracking-[0.28em] text-bordeaux mb-2"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              Senha
+            </label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-card border border-border px-4 py-3 text-lg text-foreground focus:outline-none focus:border-gold"
+              style={{ fontFamily: "var(--font-body)" }}
+            />
+          </div>
+
+          {error && (
+            <p
+              className="text-sm text-bordeaux italic"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-graphite text-cream py-3 text-sm uppercase tracking-[0.32em] hover:bg-graphite/90 disabled:opacity-50"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            {loading ? "Entrando…" : "Entrar"}
+          </button>
+        </form>
+
+        <p
+          className="mt-10 text-center text-xs uppercase tracking-[0.4em] text-graphite/40"
+          style={{ fontFamily: "var(--font-body)" }}
+        >
+          Acesso somente por convite
+        </p>
+      </div>
+    </div>
+  );
+}
 
 type StatusPost = "rascunho" | "aprovado" | "copy_gerada" | string;
 type StatusExec = "iniciado" | "processando" | "concluido" | "erro" | string;
