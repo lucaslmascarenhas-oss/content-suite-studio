@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      banco_imagens: {
+        Row: {
+          ativo: boolean | null
+          categoria: string | null
+          cliente_id: string | null
+          created_at: string | null
+          descricao: string | null
+          id: string
+          link: string | null
+          orientacao: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          categoria?: string | null
+          cliente_id?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          link?: string | null
+          orientacao?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          categoria?: string | null
+          cliente_id?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          link?: string | null
+          orientacao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banco_imagens_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendario_conteudo: {
         Row: {
           cliente_id: string
@@ -259,8 +300,10 @@ export type Database = {
           gancho: string | null
           hashtags: string | null
           id: string
+          imagem_base_link: string | null
           legenda: string | null
           link_imagem: string | null
+          prompt_imagem: string | null
           roteiro: string | null
           versao: number
         }
@@ -271,8 +314,10 @@ export type Database = {
           gancho?: string | null
           hashtags?: string | null
           id?: string
+          imagem_base_link?: string | null
           legenda?: string | null
           link_imagem?: string | null
+          prompt_imagem?: string | null
           roteiro?: string | null
           versao?: number
         }
@@ -283,8 +328,10 @@ export type Database = {
           gancho?: string | null
           hashtags?: string | null
           id?: string
+          imagem_base_link?: string | null
           legenda?: string | null
           link_imagem?: string | null
+          prompt_imagem?: string | null
           roteiro?: string | null
           versao?: number
         }
@@ -310,8 +357,10 @@ export type Database = {
           cliente_id: string
           created_at: string | null
           diferenciais: string | null
+          fontes: string | null
           id: string
           objetivo_principal: string | null
+          paleta_cores: string | null
           produtos_servicos: string | null
           publico_alvo: string | null
           restricoes: string | null
@@ -322,8 +371,10 @@ export type Database = {
           cliente_id: string
           created_at?: string | null
           diferenciais?: string | null
+          fontes?: string | null
           id?: string
           objetivo_principal?: string | null
+          paleta_cores?: string | null
           produtos_servicos?: string | null
           publico_alvo?: string | null
           restricoes?: string | null
@@ -334,8 +385,10 @@ export type Database = {
           cliente_id?: string
           created_at?: string | null
           diferenciais?: string | null
+          fontes?: string | null
           id?: string
           objetivo_principal?: string | null
+          paleta_cores?: string | null
           produtos_servicos?: string | null
           publico_alvo?: string | null
           restricoes?: string | null
