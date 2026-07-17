@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { POLL_INTERVAL_MS, POLL_TIMEOUT_MS } from "@/config/webhooks";
 import { useRowAutosave } from "@/hooks/useRowAutosave";
+import logoAsset from "@/assets/logo.png.asset.json";
 
 export const Route = createFileRoute("/")({
   component: DashboardGate,
@@ -404,14 +405,13 @@ function GhostButton({
 function Sidebar() {
   return (
     <aside className="w-64 shrink-0 bg-graphite text-cream min-h-screen flex flex-col">
-      <div className="h-32 border-b border-cream/10 flex items-center justify-center px-6">
-        <div className="w-full h-16 border border-dashed border-cream/25 flex items-center justify-center">
-          <span
-            className="text-cream/40 text-xs uppercase tracking-[0.3em]"
-            style={{ fontFamily: "var(--font-body)" }}
-          >
-            Logo
-          </span>
+      <div className="h-40 border-b border-cream/10 flex items-center justify-center px-6">
+        <div className="w-24 h-24 overflow-hidden flex items-center justify-center">
+          <img
+            src={logoAsset.url}
+            alt="Logo"
+            className="w-full h-full object-cover"
+          />
         </div>
       </div>
       <nav className="flex-1 px-6 py-8 space-y-1">
