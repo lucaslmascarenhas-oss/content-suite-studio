@@ -388,8 +388,8 @@ function GhostButton({
 function Sidebar() {
   return (
     <aside className="w-64 shrink-0 bg-graphite text-cream min-h-screen flex flex-col">
-      <div className="h-40 border-b border-cream/10 flex items-center justify-center px-6">
-        <div className="w-36 h-36 overflow-hidden flex items-center justify-center">
+      <div className="h-44 border-b border-cream/10 flex items-center justify-center px-6">
+        <div className="w-32 h-32 overflow-hidden flex items-center justify-center">
           <img src={logoAsset.url} alt="Logo" className="w-full h-full object-cover" />
         </div>
       </div>
