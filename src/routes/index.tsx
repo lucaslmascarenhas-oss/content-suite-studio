@@ -168,6 +168,8 @@ type Peca = {
   hashtags: string | null;
   roteiro: string | null;
   link_imagem: string | null;
+  prompt_imagem: string | null;
+  imagem_base_link: string | null;
   versao: number;
 };
 type Execucao = {
