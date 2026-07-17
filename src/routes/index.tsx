@@ -29,10 +29,7 @@ function DashboardGate() {
   if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-cream">
-        <p
-          className="text-sm italic text-graphite/60"
-          style={{ fontFamily: "var(--font-body)" }}
-        >
+        <p className="text-sm italic text-graphite/60" style={{ fontFamily: "var(--font-body)" }}>
           Carregando…
         </p>
       </div>
@@ -62,18 +59,12 @@ function LoginScreen() {
     <div className="min-h-screen flex items-center justify-center bg-cream px-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
-          <p
-            className="text-xs uppercase tracking-[0.4em] text-bordeaux"
-            style={{ fontFamily: "var(--font-body)" }}
-          >
+          <p className="text-xs uppercase tracking-[0.4em] text-bordeaux" style={{ fontFamily: "var(--font-body)" }}>
             Painel Editorial
           </p>
           <h1 className="mt-3 text-4xl text-graphite">Acesso restrito</h1>
           <div className="mx-auto mt-6 h-px w-16 bg-gold" />
-          <p
-            className="mt-6 text-sm italic text-graphite/60"
-            style={{ fontFamily: "var(--font-body)" }}
-          >
+          <p className="mt-6 text-sm italic text-graphite/60" style={{ fontFamily: "var(--font-body)" }}>
             Entre com suas credenciais para acessar a produção.
           </p>
         </div>
@@ -113,10 +104,7 @@ function LoginScreen() {
           </div>
 
           {error && (
-            <p
-              className="text-sm text-bordeaux italic"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
+            <p className="text-sm text-bordeaux italic" style={{ fontFamily: "var(--font-body)" }}>
               {error}
             </p>
           )}
@@ -262,9 +250,7 @@ function useExecucaoEmAndamento(clienteId: string | null, agente: Agente) {
     queryFn: async (): Promise<Execucao | null> => {
       const { data, error } = await supabase
         .from("execucoes")
-        .select(
-          "id, cliente_id, agente, status, erro_mensagem, registros_afetados, iniciado_em",
-        )
+        .select("id, cliente_id, agente, status, erro_mensagem, registros_afetados, iniciado_em")
         .eq("cliente_id", clienteId!)
         .eq("agente", agente)
         .in("status", ["iniciado", "processando"])
@@ -342,10 +328,7 @@ function StageCard({
     <section className="bg-card border border-border shadow-[0_1px_0_rgba(33,33,33,0.04)]">
       <header className="px-8 pt-8 pb-5">
         <div className="flex items-baseline gap-4">
-          <span
-            className="text-bordeaux text-sm tracking-[0.3em] uppercase"
-            style={{ fontFamily: "var(--font-body)" }}
-          >
+          <span className="text-bordeaux text-sm tracking-[0.3em] uppercase" style={{ fontFamily: "var(--font-body)" }}>
             ETAPA {number}
           </span>
           <div className="h-px flex-1 bg-gold/60" />
@@ -406,12 +389,8 @@ function Sidebar() {
   return (
     <aside className="w-64 shrink-0 bg-graphite text-cream min-h-screen flex flex-col">
       <div className="h-40 border-b border-cream/10 flex items-center justify-center px-6">
-        <div className="w-24 h-24 overflow-hidden flex items-center justify-center">
-          <img
-            src={logoAsset.url}
-            alt="Logo"
-            className="w-full h-full object-cover"
-          />
+        <div className="w-32 h-32 overflow-hidden flex items-center justify-center">
+          <img src={logoAsset.url} alt="Logo" className="w-full h-full object-cover" />
         </div>
       </div>
       <nav className="flex-1 px-6 py-8 space-y-1">
@@ -426,9 +405,7 @@ function Sidebar() {
             key={item.label}
             href="#"
             className={`block px-3 py-2 text-lg tracking-wide ${
-              item.active
-                ? "text-gold border-l-2 border-gold pl-4"
-                : "text-cream/70 hover:text-cream"
+              item.active ? "text-gold border-l-2 border-gold pl-4" : "text-cream/70 hover:text-cream"
             }`}
             style={{ fontFamily: "var(--font-body)" }}
           >
@@ -437,10 +414,7 @@ function Sidebar() {
         ))}
       </nav>
       <div className="px-6 py-6 border-t border-cream/10">
-        <p
-          className="text-xs uppercase tracking-[0.28em] text-cream/40"
-          style={{ fontFamily: "var(--font-body)" }}
-        >
+        <p className="text-xs uppercase tracking-[0.28em] text-cream/40" style={{ fontFamily: "var(--font-body)" }}>
           Painel Interno
         </p>
         <p className="mt-1 text-sm text-cream/70 italic">Uso pessoal — v1</p>
@@ -458,12 +432,7 @@ function Sidebar() {
 
 /* ---------------- Pipeline stages ---------------- */
 
-function usePoller(
-  clienteId: string | null,
-  agente: Agente,
-  execId: string | null,
-  onDone: () => void,
-) {
+function usePoller(clienteId: string | null, agente: Agente, execId: string | null, onDone: () => void) {
   const [slow, setSlow] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [finished, setFinished] = useState(false);
@@ -515,20 +484,9 @@ function usePoller(
   return { slow, errorMsg, finished, setErrorMsg };
 }
 
-function PostRow({
-  post,
-  clienteId,
-  mes,
-}: {
-  post: Post;
-  clienteId: string | null;
-  mes: string;
-}) {
+function PostRow({ post, clienteId, mes }: { post: Post; clienteId: string | null; mes: string }) {
   const qc = useQueryClient();
-  const queryKey = useMemo(
-    () => ["calendario_conteudo", clienteId, mes],
-    [clienteId, mes],
-  );
+  const queryKey = useMemo(() => ["calendario_conteudo", clienteId, mes], [clienteId, mes]);
 
   const initial = useMemo(
     () => ({
@@ -540,27 +498,20 @@ function PostRow({
       objetivo: post.objetivo ?? "",
       cta: post.cta ?? "",
     }),
-    [
-      post.data_post,
-      post.formato,
-      post.pilar,
-      post.tema,
-      post.ideia,
-      post.objetivo,
-      post.cta,
-    ],
+    [post.data_post, post.formato, post.pilar, post.tema, post.ideia, post.objetivo, post.cta],
   );
 
-  const { values, setField, flushNow, saveState, errorMsg, retry } =
-    useRowAutosave("calendario_conteudo", post.id, initial, queryKey);
+  const { values, setField, flushNow, saveState, errorMsg, retry } = useRowAutosave(
+    "calendario_conteudo",
+    post.id,
+    initial,
+    queryKey,
+  );
 
   const [aprovErr, setAprovErr] = useState<string | null>(null);
   const aprovar = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("calendario_conteudo")
-        .update({ status: "aprovado" })
-        .eq("id", post.id);
+      const { error } = await supabase.from("calendario_conteudo").update({ status: "aprovado" }).eq("id", post.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -574,28 +525,20 @@ function PostRow({
 
   const inputCls =
     "w-full bg-transparent border border-border px-3 py-2 text-base text-foreground focus:outline-none focus:border-gold";
-  const labelCls =
-    "block text-[10px] uppercase tracking-[0.28em] text-bordeaux mb-1";
+  const labelCls = "block text-[10px] uppercase tracking-[0.28em] text-bordeaux mb-1";
 
   return (
     <div className="py-5 border-b border-border last:border-b-0">
       <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
         <div className="flex items-center gap-3">
           <StatusBadge status={post.status} />
-          <span
-            className="text-xs italic text-muted-foreground"
-            style={{ fontFamily: "var(--font-body)" }}
-          >
+          <span className="text-xs italic text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
             {saveState === "salvando" && "salvando…"}
             {saveState === "salvo" && "salvo"}
             {saveState === "erro" && (
               <>
                 <span className="text-bordeaux mr-2">erro ao salvar</span>
-                <button
-                  type="button"
-                  onClick={retry}
-                  className="underline text-bordeaux"
-                >
+                <button type="button" onClick={retry} className="underline text-bordeaux">
                   tentar de novo
                 </button>
               </>
@@ -613,12 +556,8 @@ function PostRow({
         </button>
       </div>
 
-      {aprovErr && (
-        <div className="mb-2 text-xs text-bordeaux italic">{aprovErr}</div>
-      )}
-      {saveState === "erro" && errorMsg && (
-        <div className="mb-2 text-xs text-bordeaux italic">{errorMsg}</div>
-      )}
+      {aprovErr && <div className="mb-2 text-xs text-bordeaux italic">{aprovErr}</div>}
+      {saveState === "erro" && errorMsg && <div className="mb-2 text-xs text-bordeaux italic">{errorMsg}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
         <div className="md:col-span-2">
@@ -729,15 +668,10 @@ function CalendarioCard({
   const [webhookErr, setWebhookErr] = useState<string | null>(null);
   const [bulkErr, setBulkErr] = useState<string | null>(null);
 
-  const { slow, errorMsg, finished, setErrorMsg } = usePoller(
-    clienteId,
-    "strategy",
-    execId,
-    () => {
-      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
-      qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "strategy"] });
-    },
-  );
+  const { slow, errorMsg, finished, setErrorMsg } = usePoller(clienteId, "strategy", execId, () => {
+    qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+    qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "strategy"] });
+  });
 
   const gerar = useMutation({
     mutationFn: async () => {
@@ -784,11 +718,7 @@ function CalendarioCard({
       subtitle="Pauta editorial gerada pelo agente de IA — edite e aprove linha a linha."
     >
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <PrimaryButton
-          onClick={() => gerar.mutate()}
-          disabled={disabledGerar}
-          loading={gerar.isPending}
-        >
+        <PrimaryButton onClick={() => gerar.mutate()} disabled={disabledGerar} loading={gerar.isPending}>
           Gerar calendário
         </PrimaryButton>
         <GhostButton
@@ -799,21 +729,11 @@ function CalendarioCard({
             ? "Aprovando…"
             : `Aprovar todos os rascunhos${rascunhos > 0 ? ` (${rascunhos})` : ""}`}
         </GhostButton>
-        {rodando && (
-          <span className="italic text-muted-foreground text-sm">
-            Gerando calendário…
-          </span>
-        )}
+        {rodando && <span className="italic text-muted-foreground text-sm">Gerando calendário…</span>}
       </div>
 
-      {webhookErr && (
-        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">
-          {webhookErr}
-        </div>
-      )}
-      {bulkErr && (
-        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{bulkErr}</div>
-      )}
+      {webhookErr && <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{webhookErr}</div>}
+      {bulkErr && <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{bulkErr}</div>}
 
       {errorMsg && (
         <div className="mb-4 p-3 border border-bordeaux text-bordeaux text-sm flex items-center justify-between gap-3">
@@ -848,9 +768,7 @@ function CalendarioCard({
       {loading ? (
         <p className="italic text-muted-foreground">Carregando…</p>
       ) : posts.length === 0 ? (
-        <p className="italic text-muted-foreground">
-          Nenhum calendário gerado ainda para este período.
-        </p>
+        <p className="italic text-muted-foreground">Nenhum calendário gerado ainda para este período.</p>
       ) : (
         <div className="divide-y divide-border">
           {posts.map((p) => (
@@ -887,8 +805,12 @@ function PecaRow({
     [peca.gancho, peca.legenda, peca.roteiro, peca.hashtags],
   );
 
-  const { values, setField, flushNow, saveState, errorMsg, retry } =
-    useRowAutosave("pecas_conteudo", peca.id, initial, pecasQueryKey);
+  const { values, setField, flushNow, saveState, errorMsg, retry } = useRowAutosave(
+    "pecas_conteudo",
+    peca.id,
+    initial,
+    pecasQueryKey,
+  );
 
   const [aprovErr, setAprovErr] = useState<string | null>(null);
   const aprovar = useMutation({
@@ -908,14 +830,11 @@ function PecaRow({
 
   const podeAprovar = post.status === "copy_gerada";
   const jaAprovada =
-    post.status === "copy_aprovada" ||
-    post.status === "prompt_gerado" ||
-    post.status === "prompt_aprovado";
+    post.status === "copy_aprovada" || post.status === "prompt_gerado" || post.status === "prompt_aprovado";
 
   const inputCls =
     "w-full bg-transparent border border-border px-3 py-2 text-base text-foreground focus:outline-none focus:border-gold";
-  const labelCls =
-    "block text-[10px] uppercase tracking-[0.28em] text-bordeaux mb-1";
+  const labelCls = "block text-[10px] uppercase tracking-[0.28em] text-bordeaux mb-1";
 
   const dataFmt = post.data_post
     ? new Date(post.data_post).toLocaleDateString("pt-BR", {
@@ -936,20 +855,13 @@ function PecaRow({
             {dataFmt}
             {post.tema ? ` · ${post.tema}` : ""} · v{peca.versao}
           </span>
-          <span
-            className="text-xs italic text-muted-foreground"
-            style={{ fontFamily: "var(--font-body)" }}
-          >
+          <span className="text-xs italic text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
             {saveState === "salvando" && "salvando…"}
             {saveState === "salvo" && "salvo"}
             {saveState === "erro" && (
               <>
                 <span className="text-bordeaux mr-2">erro ao salvar</span>
-                <button
-                  type="button"
-                  onClick={retry}
-                  className="underline text-bordeaux"
-                >
+                <button type="button" onClick={retry} className="underline text-bordeaux">
                   tentar de novo
                 </button>
               </>
@@ -963,20 +875,12 @@ function PecaRow({
           className="inline-flex items-center gap-2 px-5 py-2 uppercase tracking-[0.22em] text-xs border border-[color:var(--gold)] bg-gold text-graphite hover:bg-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gold"
           style={{ fontFamily: "var(--font-body)", fontWeight: 600 }}
         >
-          {jaAprovada
-            ? "✓ Aprovado"
-            : aprovar.isPending
-            ? "Aprovando…"
-            : "Aprovar copy"}
+          {jaAprovada ? "✓ Aprovado" : aprovar.isPending ? "Aprovando…" : "Aprovar copy"}
         </button>
       </div>
 
-      {aprovErr && (
-        <div className="mb-2 text-xs text-bordeaux italic">{aprovErr}</div>
-      )}
-      {saveState === "erro" && errorMsg && (
-        <div className="mb-2 text-xs text-bordeaux italic">{errorMsg}</div>
-      )}
+      {aprovErr && <div className="mb-2 text-xs text-bordeaux italic">{aprovErr}</div>}
+      {saveState === "erro" && errorMsg && <div className="mb-2 text-xs text-bordeaux italic">{errorMsg}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
         <div className="md:col-span-6">
@@ -1034,15 +938,7 @@ function PecaRow({
   );
 }
 
-function CopyCard({
-  clienteId,
-  mes,
-  posts,
-}: {
-  clienteId: string | null;
-  mes: string;
-  posts: Post[];
-}) {
+function CopyCard({ clienteId, mes, posts }: { clienteId: string | null; mes: string; posts: Post[] }) {
   const qc = useQueryClient();
   const execEmAndamento = useExecucaoEmAndamento(clienteId, "copywriter");
   const [execId, setExecId] = useState<string | null>(null);
@@ -1051,23 +947,15 @@ function CopyCard({
 
   const calendarioIds = useMemo(() => posts.map((p) => p.id), [posts]);
   const pecas = usePecas(calendarioIds);
-  const pecasQueryKey = useMemo(
-    () => ["pecas_conteudo", [...calendarioIds].sort()],
-    [calendarioIds],
-  );
+  const pecasQueryKey = useMemo(() => ["pecas_conteudo", [...calendarioIds].sort()], [calendarioIds]);
 
   const aprovados = posts.filter((p) => p.status === "aprovado").length;
 
-  const { slow, errorMsg, finished, setErrorMsg } = usePoller(
-    clienteId,
-    "copywriter",
-    execId,
-    () => {
-      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
-      qc.invalidateQueries({ queryKey: ["pecas_conteudo"] });
-      qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "copywriter"] });
-    },
-  );
+  const { slow, errorMsg, finished, setErrorMsg } = usePoller(clienteId, "copywriter", execId, () => {
+    qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+    qc.invalidateQueries({ queryKey: ["pecas_conteudo"] });
+    qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "copywriter"] });
+  });
 
   const gerar = useMutation({
     mutationFn: async () => {
@@ -1113,12 +1001,7 @@ function CopyCard({
     return map;
   }, [pecas.data]);
 
-  const STATUS_COM_COPY = new Set([
-    "copy_gerada",
-    "copy_aprovada",
-    "prompt_gerado",
-    "prompt_aprovado",
-  ]);
+  const STATUS_COM_COPY = new Set(["copy_gerada", "copy_aprovada", "prompt_gerado", "prompt_aprovado"]);
   const linhas = posts
     .filter((p) => STATUS_COM_COPY.has(p.status))
     .map((post) => {
@@ -1131,42 +1014,22 @@ function CopyCard({
   const pendentes = posts.filter((p) => p.status === "copy_gerada").length;
 
   return (
-    <StageCard
-      number="II"
-      title="Copy"
-      subtitle="Textos finais escritos pelo agente — edite e aprove linha a linha."
-    >
+    <StageCard number="II" title="Copy" subtitle="Textos finais escritos pelo agente — edite e aprove linha a linha.">
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <PrimaryButton
-          onClick={() => gerar.mutate()}
-          disabled={disabled}
-          loading={gerar.isPending}
-        >
+        <PrimaryButton onClick={() => gerar.mutate()} disabled={disabled} loading={gerar.isPending}>
           Gerar copy
         </PrimaryButton>
         <GhostButton
           onClick={() => aprovarTodas.mutate()}
           disabled={!clienteId || pendentes === 0 || aprovarTodas.isPending}
         >
-          {aprovarTodas.isPending
-            ? "Aprovando…"
-            : `Aprovar todas as copies${pendentes > 0 ? ` (${pendentes})` : ""}`}
+          {aprovarTodas.isPending ? "Aprovando…" : `Aprovar todas as copies${pendentes > 0 ? ` (${pendentes})` : ""}`}
         </GhostButton>
-        {rodando && (
-          <span className="italic text-muted-foreground text-sm">
-            Gerando copy…
-          </span>
-        )}
+        {rodando && <span className="italic text-muted-foreground text-sm">Gerando copy…</span>}
       </div>
 
-      {webhookErr && (
-        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">
-          {webhookErr}
-        </div>
-      )}
-      {bulkErr && (
-        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{bulkErr}</div>
-      )}
+      {webhookErr && <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{webhookErr}</div>}
+      {bulkErr && <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{bulkErr}</div>}
       {errorMsg && (
         <div className="mb-4 p-3 border border-bordeaux text-bordeaux text-sm flex items-center justify-between gap-3">
           <span>Erro: {errorMsg}</span>
@@ -1184,13 +1047,7 @@ function CopyCard({
       {slow && !errorMsg && !finished && (
         <div className="mb-4 p-3 border border-gold text-graphite text-sm flex items-center justify-between gap-3">
           <span>Está demorando mais que o esperado.</span>
-          <GhostButton
-            onClick={() =>
-              qc.invalidateQueries({ queryKey: ["pecas_conteudo"] })
-            }
-          >
-            Atualizar
-          </GhostButton>
+          <GhostButton onClick={() => qc.invalidateQueries({ queryKey: ["pecas_conteudo"] })}>Atualizar</GhostButton>
         </div>
       )}
 
@@ -1198,9 +1055,7 @@ function CopyCard({
         <p className="italic text-muted-foreground">Carregando…</p>
       ) : linhas.length === 0 ? (
         <p className="italic text-muted-foreground">
-          {aprovados === 0
-            ? "Aprove o calendário antes de gerar as copies."
-            : "Nenhuma copy gerada ainda."}
+          {aprovados === 0 ? "Aprove o calendário antes de gerar as copies." : "Nenhuma copy gerada ainda."}
         </p>
       ) : (
         <div className="divide-y divide-border">
@@ -1245,8 +1100,12 @@ function DesignRow({
     [peca.prompt_imagem, peca.imagem_base_link],
   );
 
-  const { values, setField, flushNow, saveState, errorMsg, retry } =
-    useRowAutosave("pecas_conteudo", peca.id, initial, pecasQueryKey);
+  const { values, setField, flushNow, saveState, errorMsg, retry } = useRowAutosave(
+    "pecas_conteudo",
+    peca.id,
+    initial,
+    pecasQueryKey,
+  );
 
   const [aprovErr, setAprovErr] = useState<string | null>(null);
   const aprovar = useMutation({
@@ -1269,8 +1128,7 @@ function DesignRow({
 
   const inputCls =
     "w-full bg-transparent border border-border px-3 py-2 text-base text-foreground focus:outline-none focus:border-gold";
-  const labelCls =
-    "block text-[10px] uppercase tracking-[0.28em] text-bordeaux mb-1";
+  const labelCls = "block text-[10px] uppercase tracking-[0.28em] text-bordeaux mb-1";
 
   const dataFmt = post.data_post
     ? new Date(post.data_post).toLocaleDateString("pt-BR", {
@@ -1291,20 +1149,13 @@ function DesignRow({
             {dataFmt}
             {post.tema ? ` · ${post.tema}` : ""} · v{peca.versao}
           </span>
-          <span
-            className="text-xs italic text-muted-foreground"
-            style={{ fontFamily: "var(--font-body)" }}
-          >
+          <span className="text-xs italic text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
             {saveState === "salvando" && "salvando…"}
             {saveState === "salvo" && "salvo"}
             {saveState === "erro" && (
               <>
                 <span className="text-bordeaux mr-2">erro ao salvar</span>
-                <button
-                  type="button"
-                  onClick={retry}
-                  className="underline text-bordeaux"
-                >
+                <button type="button" onClick={retry} className="underline text-bordeaux">
                   tentar de novo
                 </button>
               </>
@@ -1318,20 +1169,12 @@ function DesignRow({
           className="inline-flex items-center gap-2 px-5 py-2 uppercase tracking-[0.22em] text-xs border border-[color:var(--gold)] bg-gold text-graphite hover:bg-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gold"
           style={{ fontFamily: "var(--font-body)", fontWeight: 600 }}
         >
-          {jaAprovada
-            ? "✓ Aprovado"
-            : aprovar.isPending
-            ? "Aprovando…"
-            : "Aprovar design"}
+          {jaAprovada ? "✓ Aprovado" : aprovar.isPending ? "Aprovando…" : "Aprovar design"}
         </button>
       </div>
 
-      {aprovErr && (
-        <div className="mb-2 text-xs text-bordeaux italic">{aprovErr}</div>
-      )}
-      {saveState === "erro" && errorMsg && (
-        <div className="mb-2 text-xs text-bordeaux italic">{errorMsg}</div>
-      )}
+      {aprovErr && <div className="mb-2 text-xs text-bordeaux italic">{aprovErr}</div>}
+      {saveState === "erro" && errorMsg && <div className="mb-2 text-xs text-bordeaux italic">{errorMsg}</div>}
 
       <div className="grid grid-cols-1 gap-3">
         <div>
@@ -1365,15 +1208,7 @@ function DesignRow({
   );
 }
 
-function DesignCard({
-  clienteId,
-  mes,
-  posts,
-}: {
-  clienteId: string | null;
-  mes: string;
-  posts: Post[];
-}) {
+function DesignCard({ clienteId, mes, posts }: { clienteId: string | null; mes: string; posts: Post[] }) {
   const qc = useQueryClient();
   const execEmAndamento = useExecucaoEmAndamento(clienteId, "design");
   const [execId, setExecId] = useState<string | null>(null);
@@ -1382,28 +1217,17 @@ function DesignCard({
 
   const calendarioIds = useMemo(() => posts.map((p) => p.id), [posts]);
   const pecas = usePecas(calendarioIds);
-  const pecasQueryKey = useMemo(
-    () => ["pecas_conteudo", [...calendarioIds].sort()],
-    [calendarioIds],
-  );
+  const pecasQueryKey = useMemo(() => ["pecas_conteudo", [...calendarioIds].sort()], [calendarioIds]);
 
   const copyAprovadas = posts.filter(
-    (p) =>
-      p.status === "copy_aprovada" ||
-      p.status === "prompt_gerado" ||
-      p.status === "prompt_aprovado",
+    (p) => p.status === "copy_aprovada" || p.status === "prompt_gerado" || p.status === "prompt_aprovado",
   ).length;
 
-  const { slow, errorMsg, finished, setErrorMsg } = usePoller(
-    clienteId,
-    "design",
-    execId,
-    () => {
-      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
-      qc.invalidateQueries({ queryKey: ["pecas_conteudo"] });
-      qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "design"] });
-    },
-  );
+  const { slow, errorMsg, finished, setErrorMsg } = usePoller(clienteId, "design", execId, () => {
+    qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+    qc.invalidateQueries({ queryKey: ["pecas_conteudo"] });
+    qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "design"] });
+  });
 
   const gerar = useMutation({
     mutationFn: async () => {
@@ -1462,36 +1286,26 @@ function DesignCard({
   const pendentes = posts.filter((p) => p.status === "prompt_gerado").length;
 
   return (
-    <StageCard number="III" title="Design" subtitle="Prompts de imagem gerados pelo agente — edite e aprove linha a linha.">
+    <StageCard
+      number="III"
+      title="Design"
+      subtitle="Prompts de imagem gerados pelo agente — edite e aprove linha a linha."
+    >
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <PrimaryButton
-          onClick={() => gerar.mutate()}
-          disabled={disabled}
-          loading={gerar.isPending}
-        >
+        <PrimaryButton onClick={() => gerar.mutate()} disabled={disabled} loading={gerar.isPending}>
           Gerar design
         </PrimaryButton>
         <GhostButton
           onClick={() => aprovarTodos.mutate()}
           disabled={!clienteId || pendentes === 0 || aprovarTodos.isPending}
         >
-          {aprovarTodos.isPending
-            ? "Aprovando…"
-            : `Aprovar todos os designs${pendentes > 0 ? ` (${pendentes})` : ""}`}
+          {aprovarTodos.isPending ? "Aprovando…" : `Aprovar todos os designs${pendentes > 0 ? ` (${pendentes})` : ""}`}
         </GhostButton>
-        {rodando && (
-          <span className="italic text-muted-foreground text-sm">
-            Gerando design…
-          </span>
-        )}
+        {rodando && <span className="italic text-muted-foreground text-sm">Gerando design…</span>}
       </div>
 
-      {webhookErr && (
-        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{webhookErr}</div>
-      )}
-      {bulkErr && (
-        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{bulkErr}</div>
-      )}
+      {webhookErr && <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{webhookErr}</div>}
+      {bulkErr && <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{bulkErr}</div>}
       {errorMsg && (
         <div className="mb-4 p-3 border border-bordeaux text-bordeaux text-sm flex items-center justify-between gap-3">
           <span>Erro: {errorMsg}</span>
@@ -1509,11 +1323,7 @@ function DesignCard({
       {slow && !errorMsg && !finished && (
         <div className="mb-4 p-3 border border-gold text-graphite text-sm flex items-center justify-between gap-3">
           <span>Está demorando mais que o esperado.</span>
-          <GhostButton
-            onClick={() => qc.invalidateQueries({ queryKey: ["pecas_conteudo"] })}
-          >
-            Atualizar
-          </GhostButton>
+          <GhostButton onClick={() => qc.invalidateQueries({ queryKey: ["pecas_conteudo"] })}>Atualizar</GhostButton>
         </div>
       )}
 
@@ -1521,9 +1331,7 @@ function DesignCard({
         <p className="italic text-muted-foreground">Carregando…</p>
       ) : linhas.length === 0 ? (
         <p className="italic text-muted-foreground">
-          {copyAprovadas === 0
-            ? "Aprove as copies antes de gerar os designs."
-            : "Nenhum design gerado ainda."}
+          {copyAprovadas === 0 ? "Aprove as copies antes de gerar os designs." : "Nenhum design gerado ainda."}
         </p>
       ) : (
         <div className="divide-y divide-border">
@@ -1547,13 +1355,7 @@ function DesignCard({
 
 type TabKey = "calendario" | "copy" | "design";
 
-function TabsBar({
-  active,
-  onChange,
-}: {
-  active: TabKey;
-  onChange: (k: TabKey) => void;
-}) {
+function TabsBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) => void }) {
   const tabs: { key: TabKey; label: string }[] = [
     { key: "calendario", label: "Calendário" },
     { key: "copy", label: "Copy" },
@@ -1574,10 +1376,7 @@ function TabsBar({
           >
             {t.label}
             {isActive && (
-              <span
-                className="absolute left-0 right-0 -bottom-px h-[2px]"
-                style={{ background: "var(--gold)" }}
-              />
+              <span className="absolute left-0 right-0 -bottom-px h-[2px]" style={{ background: "var(--gold)" }} />
             )}
           </button>
         );
@@ -1587,7 +1386,6 @@ function TabsBar({
 }
 
 /* ---------------- Dashboard ---------------- */
-
 
 function Dashboard() {
   const clientes = useClientes();
@@ -1621,18 +1419,12 @@ function Dashboard() {
         <div className="bg-graphite text-cream">
           <div className="px-10 py-5 flex items-center justify-between">
             <div>
-              <p
-                className="text-xs uppercase tracking-[0.32em] text-gold"
-                style={{ fontFamily: "var(--font-body)" }}
-              >
+              <p className="text-xs uppercase tracking-[0.32em] text-gold" style={{ fontFamily: "var(--font-body)" }}>
                 Produção Editorial
               </p>
               <h1 className="mt-1 text-2xl text-cream">Pipeline de conteúdo</h1>
             </div>
-            <p
-              className="text-sm italic text-cream/60"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
+            <p className="text-sm italic text-cream/60" style={{ fontFamily: "var(--font-body)" }}>
               {hoje}
             </p>
           </div>
@@ -1655,20 +1447,14 @@ function Dashboard() {
                 style={{ fontFamily: "var(--font-body)" }}
               >
                 {clientes.isLoading && <option>Carregando…</option>}
-                {!clientes.isLoading && (clientes.data?.length ?? 0) === 0 && (
-                  <option>Nenhum cliente ativo</option>
-                )}
+                {!clientes.isLoading && (clientes.data?.length ?? 0) === 0 && <option>Nenhum cliente ativo</option>}
                 {clientes.data?.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nome_empresa}
                   </option>
                 ))}
               </select>
-              {clientes.error && (
-                <p className="mt-2 text-xs text-bordeaux">
-                  {(clientes.error as Error).message}
-                </p>
-              )}
+              {clientes.error && <p className="mt-2 text-xs text-bordeaux">{(clientes.error as Error).message}</p>}
             </div>
             <div>
               <label
@@ -1701,33 +1487,19 @@ function Dashboard() {
             >
               Cliente selecionado
             </p>
-            <h2 className="mt-1 text-4xl text-foreground">
-              {cliente?.nome_empresa ?? "—"}
-            </h2>
-            <p className="mt-1 italic text-muted-foreground">
-              Referência editorial — {mes}
-            </p>
+            <h2 className="mt-1 text-4xl text-foreground">{cliente?.nome_empresa ?? "—"}</h2>
+            <p className="mt-1 italic text-muted-foreground">Referência editorial — {mes}</p>
           </div>
 
           <TabsBar active={activeTab} onChange={setActiveTab} />
 
           {activeTab === "calendario" && (
-            <CalendarioCard
-              clienteId={clienteId}
-              mes={mes}
-              posts={posts}
-              loading={postsQ.isLoading}
-            />
+            <CalendarioCard clienteId={clienteId} mes={mes} posts={posts} loading={postsQ.isLoading} />
           )}
 
-          {activeTab === "copy" && (
-            <CopyCard clienteId={clienteId} mes={mes} posts={posts} />
-          )}
+          {activeTab === "copy" && <CopyCard clienteId={clienteId} mes={mes} posts={posts} />}
 
-          {activeTab === "design" && (
-            <DesignCard clienteId={clienteId} mes={mes} posts={posts} />
-          )}
-
+          {activeTab === "design" && <DesignCard clienteId={clienteId} mes={mes} posts={posts} />}
 
           <GoldRule />
 
