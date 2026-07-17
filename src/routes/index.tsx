@@ -1725,7 +1725,7 @@ function Dashboard() {
           )}
 
           {activeTab === "design" && (
-            <DesignCard clienteId={clienteId} mes={mes} />
+            <DesignCard clienteId={clienteId} mes={mes} posts={posts} />
           )}
 
 
