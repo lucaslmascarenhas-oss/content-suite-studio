@@ -1075,6 +1075,7 @@ function Dashboard() {
   const clientes = useClientes();
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [mes, setMes] = useState<string>(currentYm());
+  const [activeTab, setActiveTab] = useState<TabKey>("calendario");
 
   // Auto-select first client
   useEffect(() => {
