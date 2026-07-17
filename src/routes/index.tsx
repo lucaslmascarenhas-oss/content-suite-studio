@@ -243,7 +243,7 @@ function usePecas(calendarioIds: string[]) {
       const { data, error } = await supabase
         .from("pecas_conteudo")
         .select(
-          "id, calendario_id, gancho, legenda, hashtags, roteiro, link_imagem, versao",
+          "id, calendario_id, gancho, legenda, hashtags, roteiro, link_imagem, prompt_imagem, imagem_base_link, versao",
         )
         .in("calendario_id", calendarioIds)
         .order("versao", { ascending: false });
