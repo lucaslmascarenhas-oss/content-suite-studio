@@ -71,7 +71,15 @@ export function useRowAutosave<T extends Record<string, any>>(
     setSaveState("salvando");
     setErrorMsg(null);
 
-    const { error } = await supabase.from(tabela).update(patch).eq("id", rowId);
+    // tabela é dinâmica → escapamos os tipos gerados do Supabase aqui.
+    const client = supabase as unknown as {
+      from: (t: string) => {
+        update: (v: Record<string, any>) => {
+          eq: (col: string, val: string) => Promise<{ error: { message: string } | null }>;
+        };
+      };
+    };
+    const { error } = await client.from(tabela).update(patch).eq("id", rowId);
     if (error) {
       // preserva edições e permite retry
       for (const k of keys) dirtyRef.current.add(k);
