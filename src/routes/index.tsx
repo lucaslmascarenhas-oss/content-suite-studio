@@ -296,10 +296,17 @@ type PollState =
 /* ---------------- UI atoms ---------------- */
 
 function StatusBadge({ status }: { status: StatusPost }) {
+  // Semântica:
+  //   dourado  → qualquer estado aprovado
+  //   bordô    → gerado, aguardando revisão
+  //   grafite  → rascunho
   const map: Record<string, { label: string; className: string }> = {
     rascunho: { label: "Rascunho", className: "bg-graphite text-cream" },
     aprovado: { label: "Aprovado", className: "bg-gold text-graphite" },
     copy_gerada: { label: "Copy gerada", className: "bg-bordeaux text-cream" },
+    copy_aprovada: { label: "Copy aprovada", className: "bg-gold text-graphite" },
+    prompt_gerado: { label: "Design gerado", className: "bg-bordeaux text-cream" },
+    prompt_aprovado: { label: "Design aprovado", className: "bg-gold text-graphite" },
   };
   const v = map[status] ?? { label: status, className: "bg-muted text-foreground" };
   return (
