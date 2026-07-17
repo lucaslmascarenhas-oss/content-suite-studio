@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { POLL_INTERVAL_MS, POLL_TIMEOUT_MS } from "@/config/webhooks";
+import { useRowAutosave } from "@/hooks/useRowAutosave";
 
 export const Route = createFileRoute("/")({
   component: DashboardGate,
