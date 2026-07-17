@@ -860,6 +860,178 @@ function CalendarioCard({
   );
 }
 
+function PecaRow({
+  post,
+  peca,
+  clienteId,
+  mes,
+  pecasQueryKey,
+}: {
+  post: Post;
+  peca: Peca;
+  clienteId: string | null;
+  mes: string;
+  pecasQueryKey: unknown[];
+}) {
+  const qc = useQueryClient();
+
+  const initial = useMemo(
+    () => ({
+      gancho: peca.gancho ?? "",
+      legenda: peca.legenda ?? "",
+      roteiro: peca.roteiro ?? "",
+      hashtags: peca.hashtags ?? "",
+    }),
+    [peca.gancho, peca.legenda, peca.roteiro, peca.hashtags],
+  );
+
+  const { values, setField, flushNow, saveState, errorMsg, retry } =
+    useRowAutosave("pecas_conteudo", peca.id, initial, pecasQueryKey);
+
+  const [aprovErr, setAprovErr] = useState<string | null>(null);
+  const aprovar = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("calendario_conteudo")
+        .update({ status: "copy_aprovada" })
+        .eq("id", post.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setAprovErr(null);
+      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+    },
+    onError: (e: Error) => setAprovErr(e.message),
+  });
+
+  const podeAprovar = post.status === "copy_gerada";
+  const jaAprovada =
+    post.status === "copy_aprovada" ||
+    post.status === "prompt_gerado" ||
+    post.status === "prompt_aprovado";
+
+  const inputCls =
+    "w-full bg-transparent border border-border px-3 py-2 text-base text-foreground focus:outline-none focus:border-gold";
+  const labelCls =
+    "block text-[10px] uppercase tracking-[0.28em] text-bordeaux mb-1";
+
+  const dataFmt = post.data_post
+    ? new Date(post.data_post).toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+      })
+    : "s/ data";
+
+  return (
+    <div className="py-5 border-b border-border last:border-b-0">
+      <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <StatusBadge status={post.status} />
+          <span
+            className="text-xs uppercase tracking-[0.22em] text-bordeaux"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            {dataFmt}
+            {post.tema ? ` · ${post.tema}` : ""} · v{peca.versao}
+          </span>
+          <span
+            className="text-xs italic text-muted-foreground"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            {saveState === "salvando" && "salvando…"}
+            {saveState === "salvo" && "salvo"}
+            {saveState === "erro" && (
+              <>
+                <span className="text-bordeaux mr-2">erro ao salvar</span>
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="underline text-bordeaux"
+                >
+                  tentar de novo
+                </button>
+              </>
+            )}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => aprovar.mutate()}
+          disabled={!podeAprovar || aprovar.isPending || !clienteId}
+          className="inline-flex items-center gap-2 px-5 py-2 uppercase tracking-[0.22em] text-xs border border-[color:var(--gold)] bg-gold text-graphite hover:bg-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gold"
+          style={{ fontFamily: "var(--font-body)", fontWeight: 600 }}
+        >
+          {jaAprovada
+            ? "✓ Aprovado"
+            : aprovar.isPending
+            ? "Aprovando…"
+            : "Aprovar copy"}
+        </button>
+      </div>
+
+      {aprovErr && (
+        <div className="mb-2 text-xs text-bordeaux italic">{aprovErr}</div>
+      )}
+      {saveState === "erro" && errorMsg && (
+        <div className="mb-2 text-xs text-bordeaux italic">{errorMsg}</div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <div className="md:col-span-6">
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Gancho
+          </label>
+          <input
+            value={values.gancho ?? ""}
+            onChange={(e) => setField("gancho", e.target.value)}
+            onBlur={flushNow}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+        <div className="md:col-span-6">
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Legenda
+          </label>
+          <textarea
+            value={values.legenda ?? ""}
+            onChange={(e) => setField("legenda", e.target.value)}
+            onBlur={flushNow}
+            rows={4}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+        <div className="md:col-span-6">
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Roteiro
+          </label>
+          <textarea
+            value={values.roteiro ?? ""}
+            onChange={(e) => setField("roteiro", e.target.value)}
+            onBlur={flushNow}
+            rows={3}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+        <div className="md:col-span-6">
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Hashtags
+          </label>
+          <input
+            value={values.hashtags ?? ""}
+            onChange={(e) => setField("hashtags", e.target.value)}
+            onBlur={flushNow}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CopyCard({
   clienteId,
   mes,
@@ -873,9 +1045,14 @@ function CopyCard({
   const execEmAndamento = useExecucaoEmAndamento(clienteId, "copywriter");
   const [execId, setExecId] = useState<string | null>(null);
   const [webhookErr, setWebhookErr] = useState<string | null>(null);
+  const [bulkErr, setBulkErr] = useState<string | null>(null);
 
   const calendarioIds = useMemo(() => posts.map((p) => p.id), [posts]);
   const pecas = usePecas(calendarioIds);
+  const pecasQueryKey = useMemo(
+    () => ["pecas_conteudo", [...calendarioIds].sort()],
+    [calendarioIds],
+  );
 
   const aprovados = posts.filter((p) => p.status === "aprovado").length;
 
@@ -905,6 +1082,24 @@ function CopyCard({
     onError: (e: Error) => setWebhookErr(e.message),
   });
 
+  const aprovarTodas = useMutation({
+    mutationFn: async () => {
+      if (!clienteId) throw new Error("Selecione um cliente.");
+      const { error } = await supabase
+        .from("calendario_conteudo")
+        .update({ status: "copy_aprovada" })
+        .eq("cliente_id", clienteId)
+        .eq("mes_referencia", mes)
+        .eq("status", "copy_gerada");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setBulkErr(null);
+      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+    },
+    onError: (e: Error) => setBulkErr(e.message),
+  });
+
   const rodando = !!execEmAndamento.data || (!!execId && !finished && !errorMsg);
   const disabled = !clienteId || rodando || aprovados === 0;
 
@@ -916,11 +1111,28 @@ function CopyCard({
     return map;
   }, [pecas.data]);
 
+  const STATUS_COM_COPY = new Set([
+    "copy_gerada",
+    "copy_aprovada",
+    "prompt_gerado",
+    "prompt_aprovado",
+  ]);
+  const linhas = posts
+    .filter((p) => STATUS_COM_COPY.has(p.status))
+    .map((post) => {
+      const listas = pecasPorPost[post.id];
+      const peca = listas && listas.length > 0 ? listas[0] : null;
+      return { post, peca };
+    })
+    .filter((row): row is { post: Post; peca: Peca } => !!row.peca);
+
+  const pendentes = posts.filter((p) => p.status === "copy_gerada").length;
+
   return (
     <StageCard
       number="III"
       title="Copy"
-      subtitle="Textos finais escritos pelo agente."
+      subtitle="Textos finais escritos pelo agente — edite e aprove linha a linha."
     >
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <PrimaryButton
@@ -930,6 +1142,14 @@ function CopyCard({
         >
           Gerar copy
         </PrimaryButton>
+        <GhostButton
+          onClick={() => aprovarTodas.mutate()}
+          disabled={!clienteId || pendentes === 0 || aprovarTodas.isPending}
+        >
+          {aprovarTodas.isPending
+            ? "Aprovando…"
+            : `Aprovar todas as copies${pendentes > 0 ? ` (${pendentes})` : ""}`}
+        </GhostButton>
         {rodando && (
           <span className="italic text-muted-foreground text-sm">
             Gerando copy…
@@ -941,6 +1161,9 @@ function CopyCard({
         <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">
           {webhookErr}
         </div>
+      )}
+      {bulkErr && (
+        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{bulkErr}</div>
       )}
       {errorMsg && (
         <div className="mb-4 p-3 border border-bordeaux text-bordeaux text-sm flex items-center justify-between gap-3">
@@ -969,74 +1192,27 @@ function CopyCard({
         </div>
       )}
 
-      {(pecas.data ?? []).length === 0 ? (
+      {pecas.isLoading ? (
+        <p className="italic text-muted-foreground">Carregando…</p>
+      ) : linhas.length === 0 ? (
         <p className="italic text-muted-foreground">
           {aprovados === 0
             ? "Aprove o calendário antes de gerar as copies."
             : "Nenhuma copy gerada ainda."}
         </p>
       ) : (
-        <ul className="space-y-6">
-          {posts.map((post) => {
-            const listas = pecasPorPost[post.id];
-            if (!listas || listas.length === 0) return null;
-            const peca = listas[0];
-            return (
-              <li key={post.id} className="border-l-2 border-gold pl-4">
-                <p
-                  className="text-xs uppercase tracking-[0.22em] text-bordeaux"
-                  style={{ fontFamily: "var(--font-body)" }}
-                >
-                  {post.data_post
-                    ? new Date(post.data_post).toLocaleDateString("pt-BR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                      })
-                    : "s/ data"}
-                  {post.formato ? ` · ${post.formato}` : ""} · v{peca.versao}
-                </p>
-                <h3 className="mt-1 text-xl text-foreground">
-                  {peca.gancho ?? post.tema ?? "(sem gancho)"}
-                </h3>
-                {peca.legenda && (
-                  <p className="mt-2 text-foreground/85 leading-relaxed italic whitespace-pre-line">
-                    “{peca.legenda}”
-                  </p>
-                )}
-                {peca.roteiro && (
-                  <p className="mt-2 text-sm text-foreground/70 whitespace-pre-line">
-                    <span
-                      className="uppercase tracking-[0.22em] text-xs text-muted-foreground"
-                      style={{ fontFamily: "var(--font-body)" }}
-                    >
-                      Roteiro:{" "}
-                    </span>
-                    {peca.roteiro}
-                  </p>
-                )}
-                {peca.hashtags && (
-                  <p
-                    className="mt-3 text-xs tracking-wider text-muted-foreground"
-                    style={{ fontFamily: "var(--font-body)" }}
-                  >
-                    {peca.hashtags}
-                  </p>
-                )}
-                {peca.link_imagem && (
-                  <a
-                    href={peca.link_imagem}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-block text-xs uppercase tracking-[0.22em] text-gold hover:underline"
-                    style={{ fontFamily: "var(--font-body)" }}
-                  >
-                    Ver imagem →
-                  </a>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <div className="divide-y divide-border">
+          {linhas.map(({ post, peca }) => (
+            <PecaRow
+              key={peca.id}
+              post={post}
+              peca={peca}
+              clienteId={clienteId}
+              mes={mes}
+              pecasQueryKey={pecasQueryKey}
+            />
+          ))}
+        </div>
       )}
     </StageCard>
   );
