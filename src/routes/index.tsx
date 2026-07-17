@@ -345,7 +345,7 @@ function StageCard({
             className="text-bordeaux text-sm tracking-[0.3em] uppercase"
             style={{ fontFamily: "var(--font-body)" }}
           >
-            Etapa {number}
+            ETAPA {number}
           </span>
           <div className="h-px flex-1 bg-gold/60" />
         </div>
