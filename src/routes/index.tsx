@@ -1462,7 +1462,7 @@ function DesignCard({
   const pendentes = posts.filter((p) => p.status === "prompt_gerado").length;
 
   return (
-    <StageCard number="IV" title="Design" subtitle="Prompts de imagem gerados pelo agente — edite e aprove linha a linha.">
+    <StageCard number="III" title="Design" subtitle="Prompts de imagem gerados pelo agente — edite e aprove linha a linha.">
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <PrimaryButton
           onClick={() => gerar.mutate()}
