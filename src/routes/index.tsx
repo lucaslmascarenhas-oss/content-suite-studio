@@ -142,7 +142,7 @@ function LoginScreen() {
 
 type StatusPost = "rascunho" | "aprovado" | "copy_gerada" | string;
 type StatusExec = "iniciado" | "processando" | "concluido" | "erro" | string;
-type Agente = "strategy" | "copywriter";
+type Agente = "strategy" | "copywriter" | "design";
 
 type Cliente = { id: string; nome_empresa: string };
 type Post = {
