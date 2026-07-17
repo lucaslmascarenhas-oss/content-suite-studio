@@ -1132,7 +1132,7 @@ function CopyCard({
 
   return (
     <StageCard
-      number="III"
+      number="II"
       title="Copy"
       subtitle="Textos finais escritos pelo agente — edite e aprove linha a linha."
     >
