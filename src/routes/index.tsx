@@ -512,6 +512,203 @@ function usePoller(
   return { slow, errorMsg, finished, setErrorMsg };
 }
 
+function PostRow({
+  post,
+  clienteId,
+  mes,
+}: {
+  post: Post;
+  clienteId: string | null;
+  mes: string;
+}) {
+  const qc = useQueryClient();
+  const queryKey = useMemo(
+    () => ["calendario_conteudo", clienteId, mes],
+    [clienteId, mes],
+  );
+
+  const initial = useMemo(
+    () => ({
+      data_post: post.data_post ?? "",
+      formato: post.formato ?? "",
+      pilar: post.pilar ?? "",
+      tema: post.tema ?? "",
+      ideia: post.ideia ?? "",
+      objetivo: post.objetivo ?? "",
+      cta: post.cta ?? "",
+    }),
+    [
+      post.data_post,
+      post.formato,
+      post.pilar,
+      post.tema,
+      post.ideia,
+      post.objetivo,
+      post.cta,
+    ],
+  );
+
+  const { values, setField, flushNow, saveState, errorMsg, retry } =
+    useRowAutosave("calendario_conteudo", post.id, initial, queryKey);
+
+  const [aprovErr, setAprovErr] = useState<string | null>(null);
+  const aprovar = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("calendario_conteudo")
+        .update({ status: "aprovado" })
+        .eq("id", post.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setAprovErr(null);
+      qc.invalidateQueries({ queryKey });
+    },
+    onError: (e: Error) => setAprovErr(e.message),
+  });
+
+  const jaAprovado = post.status !== "rascunho";
+
+  const inputCls =
+    "w-full bg-transparent border border-border px-3 py-2 text-base text-foreground focus:outline-none focus:border-gold";
+  const labelCls =
+    "block text-[10px] uppercase tracking-[0.28em] text-bordeaux mb-1";
+
+  return (
+    <div className="py-5 border-b border-border last:border-b-0">
+      <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <StatusBadge status={post.status} />
+          <span
+            className="text-xs italic text-muted-foreground"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            {saveState === "salvando" && "salvando…"}
+            {saveState === "salvo" && "salvo"}
+            {saveState === "erro" && (
+              <>
+                <span className="text-bordeaux mr-2">erro ao salvar</span>
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="underline text-bordeaux"
+                >
+                  tentar de novo
+                </button>
+              </>
+            )}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => aprovar.mutate()}
+          disabled={jaAprovado || aprovar.isPending || !clienteId}
+          className="inline-flex items-center gap-2 px-5 py-2 uppercase tracking-[0.22em] text-xs border border-[color:var(--gold)] bg-gold text-graphite hover:bg-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gold"
+          style={{ fontFamily: "var(--font-body)", fontWeight: 600 }}
+        >
+          {jaAprovado ? "✓ Aprovado" : aprovar.isPending ? "Aprovando…" : "Aprovar"}
+        </button>
+      </div>
+
+      {aprovErr && (
+        <div className="mb-2 text-xs text-bordeaux italic">{aprovErr}</div>
+      )}
+      {saveState === "erro" && errorMsg && (
+        <div className="mb-2 text-xs text-bordeaux italic">{errorMsg}</div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <div className="md:col-span-2">
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Data
+          </label>
+          <input
+            type="date"
+            value={values.data_post ?? ""}
+            onChange={(e) => setField("data_post", e.target.value)}
+            onBlur={flushNow}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Formato
+          </label>
+          <input
+            value={values.formato ?? ""}
+            onChange={(e) => setField("formato", e.target.value)}
+            onBlur={flushNow}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Pilar
+          </label>
+          <input
+            value={values.pilar ?? ""}
+            onChange={(e) => setField("pilar", e.target.value)}
+            onBlur={flushNow}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+        <div className="md:col-span-3">
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Tema
+          </label>
+          <input
+            value={values.tema ?? ""}
+            onChange={(e) => setField("tema", e.target.value)}
+            onBlur={flushNow}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+        <div className="md:col-span-3">
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Objetivo
+          </label>
+          <input
+            value={values.objetivo ?? ""}
+            onChange={(e) => setField("objetivo", e.target.value)}
+            onBlur={flushNow}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+        <div className="md:col-span-6">
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Ideia
+          </label>
+          <textarea
+            value={values.ideia ?? ""}
+            onChange={(e) => setField("ideia", e.target.value)}
+            onBlur={flushNow}
+            rows={2}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+        <div className="md:col-span-6">
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            CTA
+          </label>
+          <input
+            value={values.cta ?? ""}
+            onChange={(e) => setField("cta", e.target.value)}
+            onBlur={flushNow}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CalendarioCard({
   clienteId,
   mes,
@@ -527,6 +724,7 @@ function CalendarioCard({
   const execEmAndamento = useExecucaoEmAndamento(clienteId, "strategy");
   const [execId, setExecId] = useState<string | null>(null);
   const [webhookErr, setWebhookErr] = useState<string | null>(null);
+  const [bulkErr, setBulkErr] = useState<string | null>(null);
 
   const { slow, errorMsg, finished, setErrorMsg } = usePoller(
     clienteId,
@@ -553,24 +751,51 @@ function CalendarioCard({
     onError: (e: Error) => setWebhookErr(e.message),
   });
 
+  const aprovarTodos = useMutation({
+    mutationFn: async () => {
+      if (!clienteId) throw new Error("Selecione um cliente.");
+      const { error } = await supabase
+        .from("calendario_conteudo")
+        .update({ status: "aprovado" })
+        .eq("cliente_id", clienteId)
+        .eq("mes_referencia", mes)
+        .eq("status", "rascunho");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setBulkErr(null);
+      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+    },
+    onError: (e: Error) => setBulkErr(e.message),
+  });
+
   const jaExisteCalendario = posts.length > 0;
   const rodando = !!execEmAndamento.data || (!!execId && !finished && !errorMsg);
-  const disabled = !clienteId || rodando || jaExisteCalendario;
+  const disabledGerar = !clienteId || rodando || jaExisteCalendario;
+  const rascunhos = posts.filter((p) => p.status === "rascunho").length;
 
   return (
     <StageCard
       number="I"
       title="Calendário"
-      subtitle="Pauta editorial gerada pelo agente de IA."
+      subtitle="Pauta editorial gerada pelo agente de IA — edite e aprove linha a linha."
     >
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <PrimaryButton
           onClick={() => gerar.mutate()}
-          disabled={disabled}
+          disabled={disabledGerar}
           loading={gerar.isPending}
         >
           Gerar calendário
         </PrimaryButton>
+        <GhostButton
+          onClick={() => aprovarTodos.mutate()}
+          disabled={!clienteId || rascunhos === 0 || aprovarTodos.isPending}
+        >
+          {aprovarTodos.isPending
+            ? "Aprovando…"
+            : `Aprovar todos os rascunhos${rascunhos > 0 ? ` (${rascunhos})` : ""}`}
+        </GhostButton>
         {rodando && (
           <span className="italic text-muted-foreground text-sm">
             Gerando calendário…
@@ -582,6 +807,9 @@ function CalendarioCard({
         <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">
           {webhookErr}
         </div>
+      )}
+      {bulkErr && (
+        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{bulkErr}</div>
       )}
 
       {errorMsg && (
@@ -621,141 +849,11 @@ function CalendarioCard({
           Nenhum calendário gerado ainda para este período.
         </p>
       ) : (
-        <ul className="divide-y divide-border">
+        <div className="divide-y divide-border">
           {posts.map((p) => (
-            <li key={p.id} className="py-4 flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p
-                  className="text-xs uppercase tracking-[0.22em] text-bordeaux"
-                  style={{ fontFamily: "var(--font-body)" }}
-                >
-                  {p.data_post
-                    ? new Date(p.data_post).toLocaleDateString("pt-BR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                      })
-                    : "s/ data"}
-                  {p.formato ? ` · ${p.formato}` : ""}
-                  {p.pilar ? ` · ${p.pilar}` : ""}
-                </p>
-                <p className="mt-1 text-lg text-foreground leading-snug">
-                  {p.tema ?? p.ideia ?? "(sem tema)"}
-                </p>
-                {p.objetivo && (
-                  <p className="mt-1 text-sm italic text-muted-foreground">
-                    Objetivo: {p.objetivo}
-                  </p>
-                )}
-                {p.cta && (
-                  <p className="mt-1 text-sm italic text-muted-foreground">
-                    CTA: {p.cta}
-                  </p>
-                )}
-              </div>
-              <StatusBadge status={p.status} />
-            </li>
+            <PostRow key={p.id} post={p} clienteId={clienteId} mes={mes} />
           ))}
-        </ul>
-      )}
-    </StageCard>
-  );
-}
-
-function AprovacaoCard({
-  clienteId,
-  mes,
-  posts,
-}: {
-  clienteId: string | null;
-  mes: string;
-  posts: Post[];
-}) {
-  const qc = useQueryClient();
-  const [err, setErr] = useState<string | null>(null);
-
-  const rascunhos = posts.filter((p) => p.status === "rascunho").length;
-  const aprovados = posts.filter((p) => p.status !== "rascunho").length;
-
-  const aprovar = useMutation({
-    mutationFn: async () => {
-      if (!clienteId) throw new Error("Selecione um cliente.");
-      const { error } = await supabase
-        .from("calendario_conteudo")
-        .update({ status: "aprovado" })
-        .eq("cliente_id", clienteId)
-        .eq("mes_referencia", mes)
-        .eq("status", "rascunho");
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      setErr(null);
-      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
-    },
-    onError: (e: Error) => setErr(e.message),
-  });
-
-  const disabled = !clienteId || rascunhos === 0;
-
-  return (
-    <StageCard
-      number="II"
-      title="Aprovação"
-      subtitle="Revisão editorial antes da produção das peças."
-    >
-      <div className="mb-6">
-        <PrimaryButton
-          onClick={() => aprovar.mutate()}
-          disabled={disabled}
-          loading={aprovar.isPending}
-        >
-          Aprovar calendário
-        </PrimaryButton>
-      </div>
-
-      {err && (
-        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{err}</div>
-      )}
-
-      {posts.length > 0 ? (
-        <div className="space-y-4">
-          <div className="flex items-baseline justify-between border-b border-border pb-3">
-            <span
-              className="text-xs uppercase tracking-[0.24em] text-muted-foreground"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
-              Total de peças
-            </span>
-            <span className="text-2xl text-foreground">{posts.length}</span>
-          </div>
-          <div className="flex items-baseline justify-between border-b border-border pb-3">
-            <span
-              className="text-xs uppercase tracking-[0.24em] text-muted-foreground"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
-              Aprovadas
-            </span>
-            <span className="text-2xl text-gold">{aprovados}</span>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span
-              className="text-xs uppercase tracking-[0.24em] text-muted-foreground"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
-              Em rascunho
-            </span>
-            <span className="text-2xl text-bordeaux">{rascunhos}</span>
-          </div>
-          {rascunhos > 0 && (
-            <p className="italic text-muted-foreground mt-4 text-sm">
-              A aprovação move todas as peças em rascunho deste cliente/mês para
-              "aprovado".
-            </p>
-          )}
         </div>
-      ) : (
-        <p className="italic text-muted-foreground">
-          Gere o calendário antes de prosseguir.
-        </p>
       )}
     </StageCard>
   );
