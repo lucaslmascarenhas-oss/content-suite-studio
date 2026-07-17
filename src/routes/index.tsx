@@ -168,6 +168,8 @@ type Peca = {
   hashtags: string | null;
   roteiro: string | null;
   link_imagem: string | null;
+  prompt_imagem: string | null;
+  imagem_base_link: string | null;
   versao: number;
 };
 type Execucao = {
@@ -241,7 +243,7 @@ function usePecas(calendarioIds: string[]) {
       const { data, error } = await supabase
         .from("pecas_conteudo")
         .select(
-          "id, calendario_id, gancho, legenda, hashtags, roteiro, link_imagem, versao",
+          "id, calendario_id, gancho, legenda, hashtags, roteiro, link_imagem, prompt_imagem, imagem_base_link, versao",
         )
         .in("calendario_id", calendarioIds)
         .order("versao", { ascending: false });
@@ -1218,25 +1220,187 @@ function CopyCard({
   );
 }
 
-/* ---------------- Design (shell) ---------------- */
+/* ---------------- Design ---------------- */
+
+function DesignRow({
+  post,
+  peca,
+  clienteId,
+  mes,
+  pecasQueryKey,
+}: {
+  post: Post;
+  peca: Peca;
+  clienteId: string | null;
+  mes: string;
+  pecasQueryKey: unknown[];
+}) {
+  const qc = useQueryClient();
+
+  const initial = useMemo(
+    () => ({
+      prompt_imagem: peca.prompt_imagem ?? "",
+      imagem_base_link: peca.imagem_base_link ?? "",
+    }),
+    [peca.prompt_imagem, peca.imagem_base_link],
+  );
+
+  const { values, setField, flushNow, saveState, errorMsg, retry } =
+    useRowAutosave("pecas_conteudo", peca.id, initial, pecasQueryKey);
+
+  const [aprovErr, setAprovErr] = useState<string | null>(null);
+  const aprovar = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("calendario_conteudo")
+        .update({ status: "prompt_aprovado" })
+        .eq("id", post.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setAprovErr(null);
+      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+    },
+    onError: (e: Error) => setAprovErr(e.message),
+  });
+
+  const podeAprovar = post.status === "prompt_gerado";
+  const jaAprovada = post.status === "prompt_aprovado";
+
+  const inputCls =
+    "w-full bg-transparent border border-border px-3 py-2 text-base text-foreground focus:outline-none focus:border-gold";
+  const labelCls =
+    "block text-[10px] uppercase tracking-[0.28em] text-bordeaux mb-1";
+
+  const dataFmt = post.data_post
+    ? new Date(post.data_post).toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+      })
+    : "s/ data";
+
+  return (
+    <div className="py-5 border-b border-border last:border-b-0">
+      <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <StatusBadge status={post.status} />
+          <span
+            className="text-xs uppercase tracking-[0.22em] text-bordeaux"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            {dataFmt}
+            {post.tema ? ` · ${post.tema}` : ""} · v{peca.versao}
+          </span>
+          <span
+            className="text-xs italic text-muted-foreground"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            {saveState === "salvando" && "salvando…"}
+            {saveState === "salvo" && "salvo"}
+            {saveState === "erro" && (
+              <>
+                <span className="text-bordeaux mr-2">erro ao salvar</span>
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="underline text-bordeaux"
+                >
+                  tentar de novo
+                </button>
+              </>
+            )}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => aprovar.mutate()}
+          disabled={!podeAprovar || aprovar.isPending || !clienteId}
+          className="inline-flex items-center gap-2 px-5 py-2 uppercase tracking-[0.22em] text-xs border border-[color:var(--gold)] bg-gold text-graphite hover:bg-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gold"
+          style={{ fontFamily: "var(--font-body)", fontWeight: 600 }}
+        >
+          {jaAprovada
+            ? "✓ Aprovado"
+            : aprovar.isPending
+            ? "Aprovando…"
+            : "Aprovar design"}
+        </button>
+      </div>
+
+      {aprovErr && (
+        <div className="mb-2 text-xs text-bordeaux italic">{aprovErr}</div>
+      )}
+      {saveState === "erro" && errorMsg && (
+        <div className="mb-2 text-xs text-bordeaux italic">{errorMsg}</div>
+      )}
+
+      <div className="grid grid-cols-1 gap-3">
+        <div>
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Prompt de imagem
+          </label>
+          <textarea
+            value={values.prompt_imagem ?? ""}
+            onChange={(e) => setField("prompt_imagem", e.target.value)}
+            onBlur={flushNow}
+            rows={6}
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+        <div>
+          <label className={labelCls} style={{ fontFamily: "var(--font-body)" }}>
+            Link da imagem base
+          </label>
+          <input
+            value={values.imagem_base_link ?? ""}
+            onChange={(e) => setField("imagem_base_link", e.target.value)}
+            onBlur={flushNow}
+            placeholder="https://…"
+            className={inputCls}
+            style={{ fontFamily: "var(--font-body)" }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function DesignCard({
   clienteId,
   mes,
+  posts,
 }: {
   clienteId: string | null;
   mes: string;
+  posts: Post[];
 }) {
   const qc = useQueryClient();
   const execEmAndamento = useExecucaoEmAndamento(clienteId, "design");
   const [execId, setExecId] = useState<string | null>(null);
   const [webhookErr, setWebhookErr] = useState<string | null>(null);
+  const [bulkErr, setBulkErr] = useState<string | null>(null);
+
+  const calendarioIds = useMemo(() => posts.map((p) => p.id), [posts]);
+  const pecas = usePecas(calendarioIds);
+  const pecasQueryKey = useMemo(
+    () => ["pecas_conteudo", [...calendarioIds].sort()],
+    [calendarioIds],
+  );
+
+  const copyAprovadas = posts.filter(
+    (p) =>
+      p.status === "copy_aprovada" ||
+      p.status === "prompt_gerado" ||
+      p.status === "prompt_aprovado",
+  ).length;
 
   const { slow, errorMsg, finished, setErrorMsg } = usePoller(
     clienteId,
     "design",
     execId,
     () => {
+      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+      qc.invalidateQueries({ queryKey: ["pecas_conteudo"] });
       qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "design"] });
     },
   );
@@ -1256,11 +1420,49 @@ function DesignCard({
     onError: (e: Error) => setWebhookErr(e.message),
   });
 
+  const aprovarTodos = useMutation({
+    mutationFn: async () => {
+      if (!clienteId) throw new Error("Selecione um cliente.");
+      const { error } = await supabase
+        .from("calendario_conteudo")
+        .update({ status: "prompt_aprovado" })
+        .eq("cliente_id", clienteId)
+        .eq("mes_referencia", mes)
+        .eq("status", "prompt_gerado");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setBulkErr(null);
+      qc.invalidateQueries({ queryKey: ["calendario_conteudo", clienteId, mes] });
+    },
+    onError: (e: Error) => setBulkErr(e.message),
+  });
+
   const rodando = !!execEmAndamento.data || (!!execId && !finished && !errorMsg);
-  const disabled = !clienteId || rodando;
+  const disabled = !clienteId || rodando || copyAprovadas === 0;
+
+  const pecasPorPost = useMemo(() => {
+    const map: Record<string, Peca[]> = {};
+    for (const p of pecas.data ?? []) {
+      (map[p.calendario_id] ||= []).push(p);
+    }
+    return map;
+  }, [pecas.data]);
+
+  const STATUS_COM_DESIGN = new Set(["prompt_gerado", "prompt_aprovado"]);
+  const linhas = posts
+    .filter((p) => STATUS_COM_DESIGN.has(p.status))
+    .map((post) => {
+      const listas = pecasPorPost[post.id];
+      const peca = listas && listas.length > 0 ? listas[0] : null;
+      return { post, peca };
+    })
+    .filter((row): row is { post: Post; peca: Peca } => !!row.peca);
+
+  const pendentes = posts.filter((p) => p.status === "prompt_gerado").length;
 
   return (
-    <StageCard number="IV" title="Design" subtitle="Peças visuais geradas pelo agente.">
+    <StageCard number="IV" title="Design" subtitle="Prompts de imagem gerados pelo agente — edite e aprove linha a linha.">
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <PrimaryButton
           onClick={() => gerar.mutate()}
@@ -1269,6 +1471,14 @@ function DesignCard({
         >
           Gerar design
         </PrimaryButton>
+        <GhostButton
+          onClick={() => aprovarTodos.mutate()}
+          disabled={!clienteId || pendentes === 0 || aprovarTodos.isPending}
+        >
+          {aprovarTodos.isPending
+            ? "Aprovando…"
+            : `Aprovar todos os designs${pendentes > 0 ? ` (${pendentes})` : ""}`}
+        </GhostButton>
         {rodando && (
           <span className="italic text-muted-foreground text-sm">
             Gerando design…
@@ -1278,6 +1488,9 @@ function DesignCard({
 
       {webhookErr && (
         <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{webhookErr}</div>
+      )}
+      {bulkErr && (
+        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{bulkErr}</div>
       )}
       {errorMsg && (
         <div className="mb-4 p-3 border border-bordeaux text-bordeaux text-sm flex items-center justify-between gap-3">
@@ -1294,15 +1507,38 @@ function DesignCard({
         </div>
       )}
       {slow && !errorMsg && !finished && (
-        <div className="mb-4 p-3 border border-gold text-graphite text-sm">
+        <div className="mb-4 p-3 border border-gold text-graphite text-sm flex items-center justify-between gap-3">
           <span>Está demorando mais que o esperado.</span>
+          <GhostButton
+            onClick={() => qc.invalidateQueries({ queryKey: ["pecas_conteudo"] })}
+          >
+            Atualizar
+          </GhostButton>
         </div>
       )}
 
-      <p className="italic text-muted-foreground">
-        A pré-visualização e a tabela de aprovação do design serão adicionadas na
-        próxima etapa.
-      </p>
+      {pecas.isLoading ? (
+        <p className="italic text-muted-foreground">Carregando…</p>
+      ) : linhas.length === 0 ? (
+        <p className="italic text-muted-foreground">
+          {copyAprovadas === 0
+            ? "Aprove as copies antes de gerar os designs."
+            : "Nenhum design gerado ainda."}
+        </p>
+      ) : (
+        <div className="divide-y divide-border">
+          {linhas.map(({ post, peca }) => (
+            <DesignRow
+              key={peca.id}
+              post={post}
+              peca={peca}
+              clienteId={clienteId}
+              mes={mes}
+              pecasQueryKey={pecasQueryKey}
+            />
+          ))}
+        </div>
+      )}
     </StageCard>
   );
 }
@@ -1489,7 +1725,7 @@ function Dashboard() {
           )}
 
           {activeTab === "design" && (
-            <DesignCard clienteId={clienteId} mes={mes} />
+            <DesignCard clienteId={clienteId} mes={mes} posts={posts} />
           )}
 
 
