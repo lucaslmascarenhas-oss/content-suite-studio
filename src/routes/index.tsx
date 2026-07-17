@@ -1300,15 +1300,12 @@ function Dashboard() {
           <TabsBar active={activeTab} onChange={setActiveTab} />
 
           {activeTab === "calendario" && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <CalendarioCard
-                clienteId={clienteId}
-                mes={mes}
-                posts={posts}
-                loading={postsQ.isLoading}
-              />
-              <AprovacaoCard clienteId={clienteId} mes={mes} posts={posts} />
-            </div>
+            <CalendarioCard
+              clienteId={clienteId}
+              mes={mes}
+              posts={posts}
+              loading={postsQ.isLoading}
+            />
           )}
 
           {activeTab === "copy" && (
