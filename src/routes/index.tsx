@@ -142,7 +142,7 @@ function LoginScreen() {
 
 type StatusPost = "rascunho" | "aprovado" | "copy_gerada" | string;
 type StatusExec = "iniciado" | "processando" | "concluido" | "erro" | string;
-type Agente = "strategy" | "copywriter";
+type Agente = "strategy" | "copywriter" | "design";
 
 type Cliente = { id: string; nome_empresa: string };
 type Post = {
@@ -936,12 +936,146 @@ function CopyCard({
   );
 }
 
+/* ---------------- Design (shell) ---------------- */
+
+function DesignCard({
+  clienteId,
+  mes,
+}: {
+  clienteId: string | null;
+  mes: string;
+}) {
+  const qc = useQueryClient();
+  const execEmAndamento = useExecucaoEmAndamento(clienteId, "design");
+  const [execId, setExecId] = useState<string | null>(null);
+  const [webhookErr, setWebhookErr] = useState<string | null>(null);
+
+  const { slow, errorMsg, finished, setErrorMsg } = usePoller(
+    clienteId,
+    "design",
+    execId,
+    () => {
+      qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "design"] });
+    },
+  );
+
+  const gerar = useMutation({
+    mutationFn: async () => {
+      if (!clienteId) throw new Error("Selecione um cliente.");
+      const r = await dispararAgente("design", clienteId, mes);
+      if (!r.ok) throw new Error(r.motivo);
+      return r.execucao_id;
+    },
+    onSuccess: (id) => {
+      setWebhookErr(null);
+      setExecId(id);
+      qc.invalidateQueries({ queryKey: ["execucao_em_andamento", clienteId, "design"] });
+    },
+    onError: (e: Error) => setWebhookErr(e.message),
+  });
+
+  const rodando = !!execEmAndamento.data || (!!execId && !finished && !errorMsg);
+  const disabled = !clienteId || rodando;
+
+  return (
+    <StageCard number="IV" title="Design" subtitle="Peças visuais geradas pelo agente.">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <PrimaryButton
+          onClick={() => gerar.mutate()}
+          disabled={disabled}
+          loading={gerar.isPending}
+        >
+          Gerar design
+        </PrimaryButton>
+        {rodando && (
+          <span className="italic text-muted-foreground text-sm">
+            Gerando design…
+          </span>
+        )}
+      </div>
+
+      {webhookErr && (
+        <div className="mb-4 p-3 bg-bordeaux text-cream text-sm">{webhookErr}</div>
+      )}
+      {errorMsg && (
+        <div className="mb-4 p-3 border border-bordeaux text-bordeaux text-sm flex items-center justify-between gap-3">
+          <span>Erro: {errorMsg}</span>
+          <GhostButton
+            onClick={() => {
+              setErrorMsg(null);
+              setExecId(null);
+              gerar.mutate();
+            }}
+          >
+            Tentar de novo
+          </GhostButton>
+        </div>
+      )}
+      {slow && !errorMsg && !finished && (
+        <div className="mb-4 p-3 border border-gold text-graphite text-sm">
+          <span>Está demorando mais que o esperado.</span>
+        </div>
+      )}
+
+      <p className="italic text-muted-foreground">
+        A pré-visualização e a tabela de aprovação do design serão adicionadas na
+        próxima etapa.
+      </p>
+    </StageCard>
+  );
+}
+
+/* ---------------- Tabs ---------------- */
+
+type TabKey = "calendario" | "copy" | "design";
+
+function TabsBar({
+  active,
+  onChange,
+}: {
+  active: TabKey;
+  onChange: (k: TabKey) => void;
+}) {
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: "calendario", label: "Calendário" },
+    { key: "copy", label: "Copy" },
+    { key: "design", label: "Design" },
+  ];
+  return (
+    <div className="border-b border-border mb-8 flex gap-8">
+      {tabs.map((t) => {
+        const isActive = t.key === active;
+        return (
+          <button
+            key={t.key}
+            onClick={() => onChange(t.key)}
+            className={`relative pb-3 text-sm uppercase tracking-[0.28em] transition-colors ${
+              isActive ? "text-graphite" : "text-muted-foreground hover:text-graphite"
+            }`}
+            style={{ fontFamily: "var(--font-body)", fontWeight: 600 }}
+          >
+            {t.label}
+            {isActive && (
+              <span
+                className="absolute left-0 right-0 -bottom-px h-[2px]"
+                style={{ background: "var(--gold)" }}
+              />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ---------------- Dashboard ---------------- */
+
 
 function Dashboard() {
   const clientes = useClientes();
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [mes, setMes] = useState<string>(currentYm());
+  const [activeTab, setActiveTab] = useState<TabKey>("calendario");
 
   // Auto-select first client
   useEffect(() => {
@@ -1057,16 +1191,28 @@ function Dashboard() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <CalendarioCard
-              clienteId={clienteId}
-              mes={mes}
-              posts={posts}
-              loading={postsQ.isLoading}
-            />
-            <AprovacaoCard clienteId={clienteId} mes={mes} posts={posts} />
+          <TabsBar active={activeTab} onChange={setActiveTab} />
+
+          {activeTab === "calendario" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CalendarioCard
+                clienteId={clienteId}
+                mes={mes}
+                posts={posts}
+                loading={postsQ.isLoading}
+              />
+              <AprovacaoCard clienteId={clienteId} mes={mes} posts={posts} />
+            </div>
+          )}
+
+          {activeTab === "copy" && (
             <CopyCard clienteId={clienteId} mes={mes} posts={posts} />
-          </div>
+          )}
+
+          {activeTab === "design" && (
+            <DesignCard clienteId={clienteId} mes={mes} />
+          )}
+
 
           <GoldRule />
 
