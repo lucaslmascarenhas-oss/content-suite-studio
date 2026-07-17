@@ -1190,16 +1190,28 @@ function Dashboard() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <CalendarioCard
-              clienteId={clienteId}
-              mes={mes}
-              posts={posts}
-              loading={postsQ.isLoading}
-            />
-            <AprovacaoCard clienteId={clienteId} mes={mes} posts={posts} />
+          <TabsBar active={activeTab} onChange={setActiveTab} />
+
+          {activeTab === "calendario" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CalendarioCard
+                clienteId={clienteId}
+                mes={mes}
+                posts={posts}
+                loading={postsQ.isLoading}
+              />
+              <AprovacaoCard clienteId={clienteId} mes={mes} posts={posts} />
+            </div>
+          )}
+
+          {activeTab === "copy" && (
             <CopyCard clienteId={clienteId} mes={mes} posts={posts} />
-          </div>
+          )}
+
+          {activeTab === "design" && (
+            <DesignCard clienteId={clienteId} mes={mes} />
+          )}
+
 
           <GoldRule />
 
