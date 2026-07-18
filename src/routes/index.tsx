@@ -1018,8 +1018,319 @@ function EstrategiaSection() {
   return <PlaceholderSection titulo="Estratégia" texto="Cadastro de estratégia — em construção." />;
 }
 
+type PerfilFormState = {
+  segmento: string;
+  publico_alvo: string;
+  tom_de_voz: string;
+  objetivo_principal: string;
+  diferenciais: string;
+  produtos_servicos: string;
+  restricoes: string;
+  paleta_cores: string;
+  fontes: string;
+};
+
+const PERFIL_VAZIO: PerfilFormState = {
+  segmento: "",
+  publico_alvo: "",
+  tom_de_voz: "",
+  objetivo_principal: "",
+  diferenciais: "",
+  produtos_servicos: "",
+  restricoes: "",
+  paleta_cores: "",
+  fontes: "",
+};
+
 function PerfilSection() {
-  return <PlaceholderSection titulo="Perfil do Cliente" texto="Perfil da marca — em construção." />;
+  const { data: clientes = [] } = useClientesCadastro();
+  const [clientePerfilId, setClientePerfilId] = useState<string>("");
+  const [form, setForm] = useState<PerfilFormState>(PERFIL_VAZIO);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ tipo: "ok" | "erro"; msg: string } | null>(null);
+
+  const {
+    data: perfil,
+    isLoading: perfilLoading,
+    refetch: refetchPerfil,
+  } = useQuery({
+    queryKey: ["perfil_marca", clientePerfilId],
+    enabled: !!clientePerfilId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("perfis_marca")
+        .select("*")
+        .eq("cliente_id", clientePerfilId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    setFeedback(null);
+    if (!clientePerfilId) {
+      setForm(PERFIL_VAZIO);
+      return;
+    }
+    if (perfil) {
+      setForm({
+        segmento: perfil.segmento ?? "",
+        publico_alvo: perfil.publico_alvo ?? "",
+        tom_de_voz: perfil.tom_de_voz ?? "",
+        objetivo_principal: perfil.objetivo_principal ?? "",
+        diferenciais: perfil.diferenciais ?? "",
+        produtos_servicos: perfil.produtos_servicos ?? "",
+        restricoes: perfil.restricoes ?? "",
+        paleta_cores: perfil.paleta_cores ?? "",
+        fontes: perfil.fontes ?? "",
+      });
+    } else if (!perfilLoading) {
+      setForm(PERFIL_VAZIO);
+    }
+  }, [perfil, perfilLoading, clientePerfilId]);
+
+  function setField<K extends keyof PerfilFormState>(k: K, v: string) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function handleSave() {
+    if (!clientePerfilId) return;
+    setSaving(true);
+    setFeedback(null);
+    const emptyToNull = (v: string) => {
+      const t = v.trim();
+      return t === "" ? null : t;
+    };
+    const payload = {
+      cliente_id: clientePerfilId,
+      segmento: emptyToNull(form.segmento),
+      publico_alvo: emptyToNull(form.publico_alvo),
+      tom_de_voz: emptyToNull(form.tom_de_voz),
+      objetivo_principal: emptyToNull(form.objetivo_principal),
+      diferenciais: emptyToNull(form.diferenciais),
+      produtos_servicos: emptyToNull(form.produtos_servicos),
+      restricoes: emptyToNull(form.restricoes),
+      paleta_cores: emptyToNull(form.paleta_cores),
+      fontes: emptyToNull(form.fontes),
+    };
+    const { error } = await supabase
+      .from("perfis_marca")
+      .upsert(payload, { onConflict: "cliente_id" })
+      .select();
+    setSaving(false);
+    if (error) {
+      console.error("[perfis_marca upsert] erro:", error, "payload:", payload);
+      setFeedback({ tipo: "erro", msg: error.message || "Erro ao salvar perfil." });
+      return;
+    }
+    setFeedback({ tipo: "ok", msg: "Perfil salvo." });
+    await refetchPerfil();
+  }
+
+  const clienteAtual = clientes.find((c) => c.id === clientePerfilId);
+
+  return (
+    <div>
+      <div>
+        <p
+          className="text-xs uppercase tracking-[0.32em] text-muted-foreground"
+          style={{ fontFamily: "var(--font-body)" }}
+        >
+          Seção
+        </p>
+        <h2 className="mt-1 text-4xl text-foreground">Perfil do Cliente</h2>
+      </div>
+      <GoldRule />
+
+      <div className="mb-8 max-w-md">
+        <label
+          className="block text-xs uppercase tracking-[0.22em] text-graphite/70 mb-2"
+          style={{ fontFamily: "var(--font-body)" }}
+        >
+          Cliente
+        </label>
+        <select
+          value={clientePerfilId}
+          onChange={(e) => setClientePerfilId(e.target.value)}
+          className="w-full bg-transparent border border-border px-3 py-2 text-foreground focus:outline-none focus:border-gold"
+          style={{ fontFamily: "var(--font-body)" }}
+        >
+          <option value="">Selecione um cliente…</option>
+          {clientes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nome_empresa}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {!clientePerfilId && (
+        <p
+          className="italic text-graphite/70 text-lg"
+          style={{ fontFamily: "var(--font-body)" }}
+        >
+          Selecione um cliente para ver ou editar o perfil da marca.
+        </p>
+      )}
+
+      {clientePerfilId && perfilLoading && (
+        <p className="italic text-graphite/70" style={{ fontFamily: "var(--font-body)" }}>
+          Carregando…
+        </p>
+      )}
+
+      {clientePerfilId && !perfilLoading && (
+        <div className="space-y-10">
+          {clienteAtual && (
+            <p
+              className="text-sm uppercase tracking-[0.22em] text-graphite/60"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              {perfil ? "Editando perfil de" : "Novo perfil para"} · {clienteAtual.nome_empresa}
+            </p>
+          )}
+
+          <PerfilGrupo titulo="Identidade da marca">
+            <PerfilCampo label="Segmento">
+              <PerfilInput value={form.segmento} onChange={(v) => setField("segmento", v)} />
+            </PerfilCampo>
+            <PerfilCampo label="Público-alvo" full>
+              <PerfilTextarea value={form.publico_alvo} onChange={(v) => setField("publico_alvo", v)} />
+            </PerfilCampo>
+            <PerfilCampo label="Tom de voz" full>
+              <PerfilTextarea value={form.tom_de_voz} onChange={(v) => setField("tom_de_voz", v)} />
+            </PerfilCampo>
+          </PerfilGrupo>
+
+          <PerfilGrupo titulo="Produto e objetivo">
+            <PerfilCampo label="Objetivo principal" full>
+              <PerfilTextarea value={form.objetivo_principal} onChange={(v) => setField("objetivo_principal", v)} />
+            </PerfilCampo>
+            <PerfilCampo label="Diferenciais" full>
+              <PerfilTextarea value={form.diferenciais} onChange={(v) => setField("diferenciais", v)} />
+            </PerfilCampo>
+            <PerfilCampo label="Produtos e serviços" full>
+              <PerfilTextarea value={form.produtos_servicos} onChange={(v) => setField("produtos_servicos", v)} />
+            </PerfilCampo>
+          </PerfilGrupo>
+
+          <PerfilGrupo titulo="Restrições">
+            <PerfilCampo label="Restrições" full>
+              <PerfilTextarea value={form.restricoes} onChange={(v) => setField("restricoes", v)} />
+            </PerfilCampo>
+          </PerfilGrupo>
+
+          <PerfilGrupo titulo="Visual">
+            <PerfilCampo label="Paleta de cores">
+              <PerfilInput
+                value={form.paleta_cores}
+                onChange={(v) => setField("paleta_cores", v)}
+                placeholder="#D4AF37, #4A0E0E, #FFFFFF"
+              />
+            </PerfilCampo>
+            <PerfilCampo label="Fontes">
+              <PerfilInput
+                value={form.fontes}
+                onChange={(v) => setField("fontes", v)}
+                placeholder="Playfair Display, Cormorant Garamond"
+              />
+            </PerfilCampo>
+          </PerfilGrupo>
+
+          <div className="flex items-center gap-4 pt-4">
+            <PrimaryButton onClick={handleSave} loading={saving}>
+              Salvar perfil
+            </PrimaryButton>
+            {feedback && (
+              <span
+                className={`text-sm italic ${feedback.tipo === "ok" ? "text-graphite/70" : "text-bordeaux"}`}
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                {feedback.msg}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PerfilGrupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3
+        className="text-2xl text-foreground mb-4"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
+        {titulo}
+      </h3>
+      <div className="h-px bg-border mb-6" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{children}</div>
+    </section>
+  );
+}
+
+function PerfilCampo({
+  label,
+  full,
+  children,
+}: {
+  label: string;
+  full?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={full ? "md:col-span-2" : ""}>
+      <label
+        className="block text-xs uppercase tracking-[0.22em] text-graphite/70 mb-2"
+        style={{ fontFamily: "var(--font-body)" }}
+      >
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function PerfilInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full bg-transparent border border-border px-3 py-2 text-foreground focus:outline-none focus:border-gold"
+      style={{ fontFamily: "var(--font-body)" }}
+    />
+  );
+}
+
+function PerfilTextarea({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      rows={3}
+      className="w-full bg-transparent border border-border px-3 py-2 text-foreground focus:outline-none focus:border-gold resize-y"
+      style={{ fontFamily: "var(--font-body)" }}
+    />
+  );
 }
 
 function ConfiguracoesSection() {
