@@ -385,13 +385,14 @@ function GhostButton({
   );
 }
 
-type SecaoKey = "painel" | "clientes" | "estrategia" | "perfil" | "configuracoes";
+type SecaoKey = "painel" | "clientes" | "estrategia" | "perfil" | "tokens" | "configuracoes";
 
 const MENU_ITEMS: { key: SecaoKey; label: string }[] = [
   { key: "painel", label: "Painel" },
   { key: "clientes", label: "Clientes" },
   { key: "estrategia", label: "Estratégia" },
   { key: "perfil", label: "Perfil do Cliente" },
+  { key: "tokens", label: "Tokens" },
   { key: "configuracoes", label: "Configurações" },
 ];
 
