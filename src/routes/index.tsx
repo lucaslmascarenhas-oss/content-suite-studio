@@ -1432,6 +1432,7 @@ function Dashboard() {
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [mes, setMes] = useState<string>(currentYm());
   const [activeTab, setActiveTab] = useState<TabKey>("calendario");
+  const [secaoAtiva, setSecaoAtiva] = useState<SecaoKey>("painel");
 
   // Auto-select first client
   useEffect(() => {
