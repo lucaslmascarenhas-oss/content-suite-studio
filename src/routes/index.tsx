@@ -1062,7 +1062,7 @@ function EstrategiaSection() {
         pilares: pilaresArr.length > 0 ? pilaresArr : [""],
         cadencia: estrategia.cadencia ?? "",
         mix_formatos: estrategia.mix_formatos ?? "",
-        status: (["rascunho", "aprovado", "inativo"].includes(statusVal) ? statusVal : "rascunho") as EstrategiaStatus,
+        status: (["rascunho", "aprovado"].includes(statusVal) ? statusVal : "rascunho") as EstrategiaStatus,
       });
     } else if (!estrategiaLoading) {
       setForm({ ...ESTRATEGIA_VAZIA, pilares: [""] });
@@ -1232,7 +1232,6 @@ function EstrategiaSection() {
               >
                 <option value="rascunho">Rascunho</option>
                 <option value="aprovado">Aprovado</option>
-                <option value="inativo">Inativo</option>
               </select>
             </PerfilCampo>
           </PerfilGrupo>
