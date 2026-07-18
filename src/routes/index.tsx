@@ -2935,6 +2935,7 @@ function Dashboard() {
           {secaoAtiva === "clientes" && <ClientesSection />}
           {secaoAtiva === "estrategia" && <EstrategiaSection />}
           {secaoAtiva === "perfil" && <PerfilSection />}
+          {secaoAtiva === "tokens" && <TokensSection />}
           {secaoAtiva === "configuracoes" && <ConfiguracoesSection />}
 
           <GoldRule />
