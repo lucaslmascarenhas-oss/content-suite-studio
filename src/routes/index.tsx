@@ -1043,7 +1043,18 @@ const PERFIL_VAZIO: PerfilFormState = {
 };
 
 function PerfilSection() {
-  const { data: clientes = [] } = useClientesCadastro();
+  const { data: clientes = [] } = useQuery({
+    queryKey: ["clientes_perfil_ativos"],
+    queryFn: async (): Promise<{ id: string; nome_empresa: string }[]> => {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id, nome_empresa")
+        .eq("status", "ativo")
+        .order("nome_empresa", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as { id: string; nome_empresa: string }[];
+    },
+  });
   const [clientePerfilId, setClientePerfilId] = useState<string>("");
   const [form, setForm] = useState<PerfilFormState>(PERFIL_VAZIO);
   const [saving, setSaving] = useState(false);
