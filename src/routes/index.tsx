@@ -1014,8 +1014,277 @@ function Field({
   );
 }
 
+type EstrategiaStatus = "rascunho" | "aprovado" | "inativo";
+
+type EstrategiaFormState = {
+  pilares: string[];
+  cadencia: string;
+  mix_formatos: string;
+  status: EstrategiaStatus;
+};
+
+const ESTRATEGIA_VAZIA: EstrategiaFormState = {
+  pilares: [""],
+  cadencia: "",
+  mix_formatos: "",
+  status: "rascunho",
+};
+
 function EstrategiaSection() {
-  return <PlaceholderSection titulo="Estratégia" texto="Cadastro de estratégia — em construção." />;
+  const { data: clientes = [] } = useQuery({
+    queryKey: ["clientes_estrategia_ativos"],
+    queryFn: async (): Promise<{ id: string; nome_empresa: string }[]> => {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id, nome_empresa")
+        .eq("status", "ativo")
+        .order("nome_empresa", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as { id: string; nome_empresa: string }[];
+    },
+  });
+
+  const [clienteEstrategiaId, setClienteEstrategiaId] = useState<string>("");
+  const [form, setForm] = useState<EstrategiaFormState>(ESTRATEGIA_VAZIA);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ tipo: "ok" | "erro"; msg: string } | null>(null);
+
+  const {
+    data: estrategia,
+    isLoading: estrategiaLoading,
+    refetch: refetchEstrategia,
+  } = useQuery({
+    queryKey: ["estrategia_conteudo", clienteEstrategiaId],
+    enabled: !!clienteEstrategiaId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("estrategia_conteudo")
+        .select("*")
+        .eq("cliente_id", clienteEstrategiaId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    setFeedback(null);
+    if (!clienteEstrategiaId) {
+      setForm(ESTRATEGIA_VAZIA);
+      return;
+    }
+    if (estrategia) {
+      const pilaresRaw = estrategia.pilares;
+      const pilaresArr = Array.isArray(pilaresRaw)
+        ? pilaresRaw.map((p) => (typeof p === "string" ? p : String(p ?? "")))
+        : [];
+      const statusVal = (estrategia.status as EstrategiaStatus) ?? "rascunho";
+      setForm({
+        pilares: pilaresArr.length > 0 ? pilaresArr : [""],
+        cadencia: estrategia.cadencia ?? "",
+        mix_formatos: estrategia.mix_formatos ?? "",
+        status: (["rascunho", "aprovado", "inativo"].includes(statusVal)
+          ? statusVal
+          : "rascunho") as EstrategiaStatus,
+      });
+    } else if (!estrategiaLoading) {
+      setForm({ ...ESTRATEGIA_VAZIA, pilares: [""] });
+    }
+  }, [estrategia, estrategiaLoading, clienteEstrategiaId]);
+
+  function updatePilar(idx: number, value: string) {
+    setForm((f) => ({
+      ...f,
+      pilares: f.pilares.map((p, i) => (i === idx ? value : p)),
+    }));
+  }
+  function removePilar(idx: number) {
+    setForm((f) => ({
+      ...f,
+      pilares: f.pilares.filter((_, i) => i !== idx),
+    }));
+  }
+  function addPilar() {
+    setForm((f) => ({ ...f, pilares: [...f.pilares, ""] }));
+  }
+
+  async function handleSave() {
+    if (!clienteEstrategiaId) return;
+    setSaving(true);
+    setFeedback(null);
+    const pilaresLimpo = form.pilares.map((p) => p.trim()).filter((p) => p !== "");
+    const emptyToNull = (v: string) => {
+      const t = v.trim();
+      return t === "" ? null : t;
+    };
+    const payload = {
+      cliente_id: clienteEstrategiaId,
+      pilares: pilaresLimpo,
+      cadencia: emptyToNull(form.cadencia),
+      mix_formatos: emptyToNull(form.mix_formatos),
+      status: form.status,
+    };
+    const { error } = await supabase
+      .from("estrategia_conteudo")
+      .upsert(payload, { onConflict: "cliente_id" })
+      .select();
+    setSaving(false);
+    if (error) {
+      console.error("[estrategia_conteudo upsert] erro:", error, "payload:", payload);
+      setFeedback({ tipo: "erro", msg: error.message || "Erro ao salvar estratégia." });
+      return;
+    }
+    setFeedback({ tipo: "ok", msg: "Estratégia salva." });
+    await refetchEstrategia();
+  }
+
+  const clienteAtual = clientes.find((c) => c.id === clienteEstrategiaId);
+
+  return (
+    <div>
+      <div>
+        <p
+          className="text-xs uppercase tracking-[0.32em] text-muted-foreground"
+          style={{ fontFamily: "var(--font-body)" }}
+        >
+          Seção
+        </p>
+        <h2 className="mt-1 text-4xl text-foreground">Estratégia</h2>
+      </div>
+      <GoldRule />
+
+      <div className="mb-8 max-w-md">
+        <label
+          className="block text-xs uppercase tracking-[0.22em] text-graphite/70 mb-2"
+          style={{ fontFamily: "var(--font-body)" }}
+        >
+          Cliente
+        </label>
+        <select
+          value={clienteEstrategiaId}
+          onChange={(e) => setClienteEstrategiaId(e.target.value)}
+          className="w-full bg-transparent border border-border px-3 py-2 text-foreground focus:outline-none focus:border-gold"
+          style={{ fontFamily: "var(--font-body)" }}
+        >
+          <option value="">Selecione um cliente…</option>
+          {clientes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nome_empresa}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {!clienteEstrategiaId && (
+        <p
+          className="italic text-graphite/70 text-lg"
+          style={{ fontFamily: "var(--font-body)" }}
+        >
+          Selecione um cliente para ver ou editar a estratégia.
+        </p>
+      )}
+
+      {clienteEstrategiaId && estrategiaLoading && (
+        <p className="italic text-graphite/70" style={{ fontFamily: "var(--font-body)" }}>
+          Carregando…
+        </p>
+      )}
+
+      {clienteEstrategiaId && !estrategiaLoading && (
+        <div className="space-y-10">
+          {clienteAtual && (
+            <p
+              className="text-sm uppercase tracking-[0.22em] text-graphite/60"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              {estrategia ? "Editando estratégia de" : "Nova estratégia para"} · {clienteAtual.nome_empresa}
+            </p>
+          )}
+
+          <PerfilGrupo titulo="Pilares de conteúdo">
+            <div className="md:col-span-2 space-y-3">
+              {form.pilares.map((pilar, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={pilar}
+                    onChange={(e) => updatePilar(idx, e.target.value)}
+                    placeholder={`Pilar ${idx + 1}`}
+                    className="flex-1 bg-transparent border border-border px-3 py-2 text-foreground focus:outline-none focus:border-gold"
+                    style={{ fontFamily: "var(--font-body)" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePilar(idx)}
+                    className="w-9 h-9 flex items-center justify-center border border-border text-graphite/70 hover:border-bordeaux hover:text-bordeaux transition"
+                    aria-label="Remover pilar"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addPilar}
+                className="text-sm uppercase tracking-[0.22em] text-gold hover:text-gold/80 transition"
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                + Adicionar pilar
+              </button>
+            </div>
+          </PerfilGrupo>
+
+          <PerfilGrupo titulo="Cadência e formatos">
+            <PerfilCampo label="Cadência">
+              <PerfilInput
+                value={form.cadencia}
+                onChange={(v) => setForm((f) => ({ ...f, cadencia: v }))}
+                placeholder="12 posts por mês"
+              />
+            </PerfilCampo>
+            <PerfilCampo label="Mix de formatos">
+              <PerfilInput
+                value={form.mix_formatos}
+                onChange={(v) => setForm((f) => ({ ...f, mix_formatos: v }))}
+                placeholder="feed, carrossel, stories"
+              />
+            </PerfilCampo>
+          </PerfilGrupo>
+
+          <PerfilGrupo titulo="Status">
+            <PerfilCampo label="Status">
+              <select
+                value={form.status}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, status: e.target.value as EstrategiaStatus }))
+                }
+                className="w-full bg-transparent border border-border px-3 py-2 text-foreground focus:outline-none focus:border-gold"
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                <option value="rascunho">Rascunho</option>
+                <option value="aprovado">Aprovado</option>
+                <option value="inativo">Inativo</option>
+              </select>
+            </PerfilCampo>
+          </PerfilGrupo>
+
+          <div className="flex items-center gap-4 pt-4">
+            <PrimaryButton onClick={handleSave} loading={saving}>
+              Salvar estratégia
+            </PrimaryButton>
+            {feedback && (
+              <span
+                className={`text-sm italic ${feedback.tipo === "ok" ? "text-graphite/70" : "text-bordeaux"}`}
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                {feedback.msg}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 type PerfilFormState = {
