@@ -726,12 +726,42 @@ function ClienteFormModal({
 
     setSaving(true);
     try {
-      if (cliente) {
-        const { error } = await supabase.from("clientes").update(payload).eq("id", cliente.id);
-        if (error) throw error;
+      if (cliente && cliente.id) {
+        const { data, error } = await supabase
+          .from("clientes")
+          .update(payload)
+          .eq("id", cliente.id)
+          .select();
+        if (error) {
+          console.error("[ClienteFormModal] Erro ao atualizar cliente:", error, {
+            id: cliente.id,
+            payload,
+          });
+          throw error;
+        }
+        if (!data || data.length === 0) {
+          console.error("[ClienteFormModal] Update afetou 0 linhas:", {
+            id: cliente.id,
+            payload,
+          });
+          setSaveErr(
+            "Nenhuma linha foi atualizada — verifique o id do cliente ou as permissões (RLS) da tabela clientes.",
+          );
+          setSaving(false);
+          return;
+        }
       } else {
-        const { error } = await supabase.from("clientes").insert(payload);
-        if (error) throw error;
+        const { data, error } = await supabase.from("clientes").insert(payload).select();
+        if (error) {
+          console.error("[ClienteFormModal] Erro ao inserir cliente:", error, { payload });
+          throw error;
+        }
+        if (!data || data.length === 0) {
+          console.error("[ClienteFormModal] Insert não retornou linha:", { payload });
+          setSaveErr("O cliente não foi criado — verifique as permissões (RLS) da tabela clientes.");
+          setSaving(false);
+          return;
+        }
       }
       onSaved();
     } catch (e) {
