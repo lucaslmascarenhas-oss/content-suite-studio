@@ -385,13 +385,14 @@ function GhostButton({
   );
 }
 
-type SecaoKey = "painel" | "clientes" | "estrategia" | "perfil" | "configuracoes";
+type SecaoKey = "painel" | "clientes" | "estrategia" | "perfil" | "tokens" | "configuracoes";
 
 const MENU_ITEMS: { key: SecaoKey; label: string }[] = [
   { key: "painel", label: "Painel" },
   { key: "clientes", label: "Clientes" },
   { key: "estrategia", label: "Estratégia" },
   { key: "perfil", label: "Perfil do Cliente" },
+  { key: "tokens", label: "Tokens" },
   { key: "configuracoes", label: "Configurações" },
 ];
 
@@ -1562,6 +1563,299 @@ function ConfiguracoesSection() {
   return <PlaceholderSection titulo="Configurações" texto="Em construção." />;
 }
 
+/* ---------------- Tokens Section ---------------- */
+
+type UsoRow = {
+  cliente_id: string | null;
+  mes_referencia: string | null;
+  tokens_total: number | null;
+  custo_usd: number | null;
+};
+
+function useUsoTokens() {
+  return useQuery({
+    queryKey: ["uso_tokens_all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("uso_tokens")
+        .select("cliente_id, mes_referencia, tokens_total, custo_usd");
+      if (error) throw error;
+      return (data ?? []) as UsoRow[];
+    },
+  });
+}
+
+function useClientesMap() {
+  return useQuery({
+    queryKey: ["clientes_map_all"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clientes").select("id, nome_empresa");
+      if (error) throw error;
+      const map = new Map<string, string>();
+      (data ?? []).forEach((c: { id: string; nome_empresa: string }) => map.set(c.id, c.nome_empresa));
+      return map;
+    },
+  });
+}
+
+const usdFmt = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
+const intFmt = new Intl.NumberFormat("pt-BR");
+
+function formatMesLabel(mes: string): string {
+  // Expect YYYY-MM or YYYY-MM-DD
+  const m = mes.match(/^(\d{4})-(\d{2})/);
+  if (!m) return mes;
+  const year = m[1];
+  const month = parseInt(m[2], 10);
+  const nomes = [
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
+  ];
+  return `${nomes[month - 1] ?? mes} de ${year}`;
+}
+
+function TokensSection() {
+  const { data: rows, isLoading } = useUsoTokens();
+  const { data: clientesMap } = useClientesMap();
+
+  const mesesDisponiveis = useMemo(() => {
+    if (!rows) return [];
+    const set = new Set<string>();
+    rows.forEach((r) => {
+      if (r.mes_referencia) set.add(r.mes_referencia);
+    });
+    return Array.from(set).sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+  }, [rows]);
+
+  const [mesSelecionado, setMesSelecionado] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (mesesDisponiveis.length > 0 && (!mesSelecionado || !mesesDisponiveis.includes(mesSelecionado))) {
+      setMesSelecionado(mesesDisponiveis[0]);
+    }
+  }, [mesesDisponiveis, mesSelecionado]);
+
+  const totalMes = useMemo(() => {
+    if (!rows || !mesSelecionado) return { custo: 0, tokens: 0 };
+    return rows
+      .filter((r) => r.mes_referencia === mesSelecionado)
+      .reduce(
+        (acc, r) => ({
+          custo: acc.custo + (r.custo_usd ?? 0),
+          tokens: acc.tokens + (r.tokens_total ?? 0),
+        }),
+        { custo: 0, tokens: 0 },
+      );
+  }, [rows, mesSelecionado]);
+
+  const porClienteMes = useMemo(() => {
+    if (!rows || !mesSelecionado) return [];
+    const map = new Map<string, { custo: number; tokens: number }>();
+    rows
+      .filter((r) => r.mes_referencia === mesSelecionado && r.cliente_id)
+      .forEach((r) => {
+        const key = r.cliente_id as string;
+        const cur = map.get(key) ?? { custo: 0, tokens: 0 };
+        cur.custo += r.custo_usd ?? 0;
+        cur.tokens += r.tokens_total ?? 0;
+        map.set(key, cur);
+      });
+    return Array.from(map.entries())
+      .map(([cliente_id, v]) => ({ cliente_id, ...v }))
+      .sort((a, b) => b.custo - a.custo);
+  }, [rows, mesSelecionado]);
+
+  const porClienteTotal = useMemo(() => {
+    if (!rows) return [];
+    const map = new Map<string, { custo: number; tokens: number }>();
+    rows.forEach((r) => {
+      if (!r.cliente_id) return;
+      const cur = map.get(r.cliente_id) ?? { custo: 0, tokens: 0 };
+      cur.custo += r.custo_usd ?? 0;
+      cur.tokens += r.tokens_total ?? 0;
+      map.set(r.cliente_id, cur);
+    });
+    return Array.from(map.entries())
+      .map(([cliente_id, v]) => ({ cliente_id, ...v }))
+      .sort((a, b) => b.custo - a.custo);
+  }, [rows]);
+
+  const nomeCliente = (id: string) => clientesMap?.get(id) ?? "—";
+
+  return (
+    <div>
+      <p
+        className="text-xs uppercase tracking-[0.32em] text-muted-foreground"
+        style={{ fontFamily: "var(--font-body)" }}
+      >
+        Seção
+      </p>
+      <h2 className="mt-1 text-4xl text-foreground">Tokens</h2>
+      <GoldRule />
+
+      {isLoading ? (
+        <p className="italic text-muted-foreground text-lg">Carregando…</p>
+      ) : !rows || rows.length === 0 ? (
+        <p className="italic text-muted-foreground text-lg">Nenhum registro de uso de tokens ainda.</p>
+      ) : (
+        <>
+          {/* Seletor de mês */}
+          <div className="flex items-center gap-4 mb-8">
+            <label
+              className="text-xs uppercase tracking-[0.28em] text-muted-foreground"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              Mês de referência
+            </label>
+            <select
+              value={mesSelecionado ?? ""}
+              onChange={(e) => setMesSelecionado(e.target.value)}
+              className="bg-transparent border border-border px-3 py-2 text-foreground focus:outline-none focus:border-gold"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              {mesesDisponiveis.map((m) => (
+                <option key={m} value={m}>
+                  {formatMesLabel(m)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Visão 1 */}
+          {mesSelecionado && (
+            <div className="border border-gold/40 bg-cream/50 p-8 mb-10">
+              <p
+                className="text-xs uppercase tracking-[0.32em] text-muted-foreground"
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                Gasto total em {formatMesLabel(mesSelecionado)}
+              </p>
+              <p
+                className="mt-4 text-6xl text-foreground"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
+                {usdFmt.format(totalMes.custo).replace("$", "US$ ")}
+              </p>
+              <p className="mt-3 text-lg italic text-muted-foreground">
+                {intFmt.format(totalMes.tokens)} tokens
+              </p>
+            </div>
+          )}
+
+          {/* Visão 2 */}
+          <div className="mb-10">
+            <h3 className="text-2xl text-foreground" style={{ fontFamily: "var(--font-heading)" }}>
+              Por cliente em {mesSelecionado ? formatMesLabel(mesSelecionado) : "—"}
+            </h3>
+            <GoldRule />
+            {porClienteMes.length === 0 ? (
+              <p className="italic text-muted-foreground">Nenhum gasto neste mês.</p>
+            ) : (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-gold/40">
+                    <th
+                      className="text-left py-3 text-xs uppercase tracking-[0.28em] text-muted-foreground font-normal"
+                      style={{ fontFamily: "var(--font-body)" }}
+                    >
+                      Cliente
+                    </th>
+                    <th
+                      className="text-right py-3 text-xs uppercase tracking-[0.28em] text-muted-foreground font-normal"
+                      style={{ fontFamily: "var(--font-body)" }}
+                    >
+                      Tokens
+                    </th>
+                    <th
+                      className="text-right py-3 text-xs uppercase tracking-[0.28em] text-muted-foreground font-normal"
+                      style={{ fontFamily: "var(--font-body)" }}
+                    >
+                      Custo
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {porClienteMes.map((r) => (
+                    <tr key={r.cliente_id} className="border-b border-border/40">
+                      <td className="py-3 text-foreground">{nomeCliente(r.cliente_id)}</td>
+                      <td className="py-3 text-right text-foreground">{intFmt.format(r.tokens)}</td>
+                      <td className="py-3 text-right text-foreground">
+                        {usdFmt.format(r.custo).replace("$", "US$ ")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Visão 3 */}
+          <div>
+            <h3 className="text-2xl text-foreground" style={{ fontFamily: "var(--font-heading)" }}>
+              Total por cliente (desde o início)
+            </h3>
+            <GoldRule />
+            {porClienteTotal.length === 0 ? (
+              <p className="italic text-muted-foreground">Sem registros.</p>
+            ) : (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-gold/40">
+                    <th
+                      className="text-left py-3 text-xs uppercase tracking-[0.28em] text-muted-foreground font-normal"
+                      style={{ fontFamily: "var(--font-body)" }}
+                    >
+                      Cliente
+                    </th>
+                    <th
+                      className="text-right py-3 text-xs uppercase tracking-[0.28em] text-muted-foreground font-normal"
+                      style={{ fontFamily: "var(--font-body)" }}
+                    >
+                      Tokens totais
+                    </th>
+                    <th
+                      className="text-right py-3 text-xs uppercase tracking-[0.28em] text-muted-foreground font-normal"
+                      style={{ fontFamily: "var(--font-body)" }}
+                    >
+                      Custo total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {porClienteTotal.map((r) => (
+                    <tr key={r.cliente_id} className="border-b border-border/40">
+                      <td className="py-3 text-foreground">{nomeCliente(r.cliente_id)}</td>
+                      <td className="py-3 text-right text-foreground">{intFmt.format(r.tokens)}</td>
+                      <td className="py-3 text-right text-foreground">
+                        {usdFmt.format(r.custo).replace("$", "US$ ")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- Pipeline stages ---------------- */
 
 function usePoller(clienteId: string | null, agente: Agente, execId: string | null, onDone: () => void) {
@@ -2641,6 +2935,7 @@ function Dashboard() {
           {secaoAtiva === "clientes" && <ClientesSection />}
           {secaoAtiva === "estrategia" && <EstrategiaSection />}
           {secaoAtiva === "perfil" && <PerfilSection />}
+          {secaoAtiva === "tokens" && <TokensSection />}
           {secaoAtiva === "configuracoes" && <ConfiguracoesSection />}
 
           <GoldRule />
