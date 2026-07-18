@@ -1472,75 +1472,84 @@ function Dashboard() {
         </div>
 
         <div className="px-10 py-10 max-w-[1400px]">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
-            <div>
-              <label
-                className="block text-xs uppercase tracking-[0.28em] text-bordeaux mb-2"
-                style={{ fontFamily: "var(--font-body)" }}
-              >
-                Cliente
-              </label>
-              <select
-                value={clienteId ?? ""}
-                onChange={(e) => setClienteId(e.target.value || null)}
-                disabled={clientes.isLoading}
-                className="w-full bg-card border border-border px-4 py-3 text-lg text-foreground focus:outline-none focus:border-gold"
-                style={{ fontFamily: "var(--font-body)" }}
-              >
-                {clientes.isLoading && <option>Carregando…</option>}
-                {!clientes.isLoading && (clientes.data?.length ?? 0) === 0 && <option>Nenhum cliente ativo</option>}
-                {clientes.data?.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome_empresa}
-                  </option>
-                ))}
-              </select>
-              {clientes.error && <p className="mt-2 text-xs text-bordeaux">{(clientes.error as Error).message}</p>}
-            </div>
-            <div>
-              <label
-                className="block text-xs uppercase tracking-[0.28em] text-bordeaux mb-2"
-                style={{ fontFamily: "var(--font-body)" }}
-              >
-                Mês (AAAA-MM)
-              </label>
-              <select
-                value={mes}
-                onChange={(e) => setMes(e.target.value)}
-                className="w-full bg-card border border-border px-4 py-3 text-lg text-foreground focus:outline-none focus:border-gold"
-                style={{ fontFamily: "var(--font-body)" }}
-              >
-                {MESES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {secaoAtiva === "painel" && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
+                <div>
+                  <label
+                    className="block text-xs uppercase tracking-[0.28em] text-bordeaux mb-2"
+                    style={{ fontFamily: "var(--font-body)" }}
+                  >
+                    Cliente
+                  </label>
+                  <select
+                    value={clienteId ?? ""}
+                    onChange={(e) => setClienteId(e.target.value || null)}
+                    disabled={clientes.isLoading}
+                    className="w-full bg-card border border-border px-4 py-3 text-lg text-foreground focus:outline-none focus:border-gold"
+                    style={{ fontFamily: "var(--font-body)" }}
+                  >
+                    {clientes.isLoading && <option>Carregando…</option>}
+                    {!clientes.isLoading && (clientes.data?.length ?? 0) === 0 && <option>Nenhum cliente ativo</option>}
+                    {clientes.data?.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome_empresa}
+                      </option>
+                    ))}
+                  </select>
+                  {clientes.error && <p className="mt-2 text-xs text-bordeaux">{(clientes.error as Error).message}</p>}
+                </div>
+                <div>
+                  <label
+                    className="block text-xs uppercase tracking-[0.28em] text-bordeaux mb-2"
+                    style={{ fontFamily: "var(--font-body)" }}
+                  >
+                    Mês (AAAA-MM)
+                  </label>
+                  <select
+                    value={mes}
+                    onChange={(e) => setMes(e.target.value)}
+                    className="w-full bg-card border border-border px-4 py-3 text-lg text-foreground focus:outline-none focus:border-gold"
+                    style={{ fontFamily: "var(--font-body)" }}
+                  >
+                    {MESES.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-          <GoldRule />
+              <GoldRule />
 
-          <div className="mb-8">
-            <p
-              className="text-xs uppercase tracking-[0.32em] text-muted-foreground"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
-              Cliente selecionado
-            </p>
-            <h2 className="mt-1 text-4xl text-foreground">{cliente?.nome_empresa ?? "—"}</h2>
-            <p className="mt-1 italic text-muted-foreground">Referência editorial — {mes}</p>
-          </div>
+              <div className="mb-8">
+                <p
+                  className="text-xs uppercase tracking-[0.32em] text-muted-foreground"
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  Cliente selecionado
+                </p>
+                <h2 className="mt-1 text-4xl text-foreground">{cliente?.nome_empresa ?? "—"}</h2>
+                <p className="mt-1 italic text-muted-foreground">Referência editorial — {mes}</p>
+              </div>
 
-          <TabsBar active={activeTab} onChange={setActiveTab} />
+              <TabsBar active={activeTab} onChange={setActiveTab} />
 
-          {activeTab === "calendario" && (
-            <CalendarioCard clienteId={clienteId} mes={mes} posts={posts} loading={postsQ.isLoading} />
+              {activeTab === "calendario" && (
+                <CalendarioCard clienteId={clienteId} mes={mes} posts={posts} loading={postsQ.isLoading} />
+              )}
+
+              {activeTab === "copy" && <CopyCard clienteId={clienteId} mes={mes} posts={posts} />}
+
+              {activeTab === "design" && <DesignCard clienteId={clienteId} mes={mes} posts={posts} />}
+            </>
           )}
 
-          {activeTab === "copy" && <CopyCard clienteId={clienteId} mes={mes} posts={posts} />}
-
-          {activeTab === "design" && <DesignCard clienteId={clienteId} mes={mes} posts={posts} />}
+          {secaoAtiva === "clientes" && <ClientesSection />}
+          {secaoAtiva === "estrategia" && <EstrategiaSection />}
+          {secaoAtiva === "perfil" && <PerfilSection />}
+          {secaoAtiva === "configuracoes" && <ConfiguracoesSection />}
 
           <GoldRule />
 
