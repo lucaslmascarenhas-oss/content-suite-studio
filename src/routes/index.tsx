@@ -727,11 +727,7 @@ function ClienteFormModal({
     setSaving(true);
     try {
       if (cliente && cliente.id) {
-        const { data, error } = await supabase
-          .from("clientes")
-          .update(payload)
-          .eq("id", cliente.id)
-          .select();
+        const { data, error } = await supabase.from("clientes").update(payload).eq("id", cliente.id).select();
         if (error) {
           console.error("[ClienteFormModal] Erro ao atualizar cliente:", error, {
             id: cliente.id,
@@ -776,20 +772,12 @@ function ClienteFormModal({
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-graphite/60 px-4 py-10"
       onClick={onClose}
     >
-      <div
-        className="w-full max-w-3xl bg-cream border border-border shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="w-full max-w-3xl bg-cream border border-border shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <header className="px-8 pt-8 pb-5 border-b border-border">
-          <p
-            className="text-xs uppercase tracking-[0.32em] text-bordeaux"
-            style={{ fontFamily: "var(--font-body)" }}
-          >
+          <p className="text-xs uppercase tracking-[0.32em] text-bordeaux" style={{ fontFamily: "var(--font-body)" }}>
             Cadastro
           </p>
-          <h3 className="mt-2 text-3xl text-foreground">
-            {cliente ? "Editar cliente" : "Novo cliente"}
-          </h3>
+          <h3 className="mt-2 text-3xl text-foreground">{cliente ? "Editar cliente" : "Novo cliente"}</h3>
           <div className="mt-4 h-px w-16 bg-gold" />
         </header>
 
@@ -804,11 +792,7 @@ function ClienteFormModal({
               />
             </Field>
             <Field label="Status">
-              <select
-                value={form.status}
-                onChange={(e) => upd("status", e.target.value)}
-                className="form-input"
-              >
+              <select value={form.status} onChange={(e) => upd("status", e.target.value)} className="form-input">
                 <option value="ativo">ativo</option>
                 <option value="inativo">inativo</option>
               </select>
@@ -932,9 +916,7 @@ function ClienteFormModal({
             </Field>
           </FormGroup>
 
-          {saveErr && (
-            <p className="text-sm text-bordeaux italic">{saveErr}</p>
-          )}
+          {saveErr && <p className="text-sm text-bordeaux italic">{saveErr}</p>}
         </div>
 
         <footer className="px-8 py-5 border-t border-border flex items-center justify-end gap-4 bg-cream">
@@ -974,10 +956,7 @@ function ClienteFormModal({
 function FormGroup({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <div>
-      <h4
-        className="text-xs uppercase tracking-[0.28em] text-bordeaux mb-4"
-        style={{ fontFamily: "var(--font-body)" }}
-      >
+      <h4 className="text-xs uppercase tracking-[0.28em] text-bordeaux mb-4" style={{ fontFamily: "var(--font-body)" }}>
         {titulo}
       </h4>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
@@ -1014,7 +993,7 @@ function Field({
   );
 }
 
-type EstrategiaStatus = "rascunho" | "aprovado" | "inativo";
+type EstrategiaStatus = "rascunho" | "aprovado";
 
 type EstrategiaFormState = {
   pilares: string[];
@@ -1083,9 +1062,7 @@ function EstrategiaSection() {
         pilares: pilaresArr.length > 0 ? pilaresArr : [""],
         cadencia: estrategia.cadencia ?? "",
         mix_formatos: estrategia.mix_formatos ?? "",
-        status: (["rascunho", "aprovado", "inativo"].includes(statusVal)
-          ? statusVal
-          : "rascunho") as EstrategiaStatus,
+        status: (["rascunho", "aprovado", "inativo"].includes(statusVal) ? statusVal : "rascunho") as EstrategiaStatus,
       });
     } else if (!estrategiaLoading) {
       setForm({ ...ESTRATEGIA_VAZIA, pilares: [""] });
@@ -1124,10 +1101,7 @@ function EstrategiaSection() {
       mix_formatos: emptyToNull(form.mix_formatos),
       status: form.status,
     };
-    const { error } = await supabase
-      .from("estrategia_conteudo")
-      .upsert(payload, { onConflict: "cliente_id" })
-      .select();
+    const { error } = await supabase.from("estrategia_conteudo").upsert(payload, { onConflict: "cliente_id" }).select();
     setSaving(false);
     if (error) {
       console.error("[estrategia_conteudo upsert] erro:", error, "payload:", payload);
@@ -1176,10 +1150,7 @@ function EstrategiaSection() {
       </div>
 
       {!clienteEstrategiaId && (
-        <p
-          className="italic text-graphite/70 text-lg"
-          style={{ fontFamily: "var(--font-body)" }}
-        >
+        <p className="italic text-graphite/70 text-lg" style={{ fontFamily: "var(--font-body)" }}>
           Selecione um cliente para ver ou editar a estratégia.
         </p>
       )}
@@ -1255,9 +1226,7 @@ function EstrategiaSection() {
             <PerfilCampo label="Status">
               <select
                 value={form.status}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, status: e.target.value as EstrategiaStatus }))
-                }
+                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as EstrategiaStatus }))}
                 className="w-full bg-transparent border border-border px-3 py-2 text-foreground focus:outline-none focus:border-gold"
                 style={{ fontFamily: "var(--font-body)" }}
               >
@@ -1394,10 +1363,7 @@ function PerfilSection() {
       paleta_cores: emptyToNull(form.paleta_cores),
       fontes: emptyToNull(form.fontes),
     };
-    const { error } = await supabase
-      .from("perfis_marca")
-      .upsert(payload, { onConflict: "cliente_id" })
-      .select();
+    const { error } = await supabase.from("perfis_marca").upsert(payload, { onConflict: "cliente_id" }).select();
     setSaving(false);
     if (error) {
       console.error("[perfis_marca upsert] erro:", error, "payload:", payload);
@@ -1446,10 +1412,7 @@ function PerfilSection() {
       </div>
 
       {!clientePerfilId && (
-        <p
-          className="italic text-graphite/70 text-lg"
-          style={{ fontFamily: "var(--font-body)" }}
-        >
+        <p className="italic text-graphite/70 text-lg" style={{ fontFamily: "var(--font-body)" }}>
           Selecione um cliente para ver ou editar o perfil da marca.
         </p>
       )}
@@ -1540,10 +1503,7 @@ function PerfilSection() {
 function PerfilGrupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3
-        className="text-2xl text-foreground mb-4"
-        style={{ fontFamily: "var(--font-display)" }}
-      >
+      <h3 className="text-2xl text-foreground mb-4" style={{ fontFamily: "var(--font-display)" }}>
         {titulo}
       </h3>
       <div className="h-px bg-border mb-6" />
@@ -1552,15 +1512,7 @@ function PerfilGrupo({ titulo, children }: { titulo: string; children: React.Rea
   );
 }
 
-function PerfilCampo({
-  label,
-  full,
-  children,
-}: {
-  label: string;
-  full?: boolean;
-  children: React.ReactNode;
-}) {
+function PerfilCampo({ label, full, children }: { label: string; full?: boolean; children: React.ReactNode }) {
   return (
     <div className={full ? "md:col-span-2" : ""}>
       <label
@@ -1595,13 +1547,7 @@ function PerfilInput({
   );
 }
 
-function PerfilTextarea({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
+function PerfilTextarea({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <textarea
       value={value}
