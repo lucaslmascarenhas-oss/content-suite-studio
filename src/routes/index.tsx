@@ -454,8 +454,534 @@ function PlaceholderSection({ titulo, texto }: { titulo: string; texto: string }
   );
 }
 
+type ClienteRow = {
+  id: string;
+  nome_empresa: string;
+  status: string;
+  nome_contato: string | null;
+  responsavel: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  instagram: string | null;
+  cidade: string | null;
+  plano: string | null;
+  valor_mensal: number | null;
+  dia_vencimento: number | null;
+  data_inicio: string | null;
+  data_cancelamento: string | null;
+  link_planilha: string | null;
+  observacoes: string | null;
+};
+
+function useClientesCadastro() {
+  return useQuery({
+    queryKey: ["clientes_cadastro"],
+    queryFn: async (): Promise<ClienteRow[]> => {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select(
+          "id, nome_empresa, status, nome_contato, responsavel, whatsapp, email, instagram, cidade, plano, valor_mensal, dia_vencimento, data_inicio, data_cancelamento, link_planilha, observacoes",
+        )
+        .order("nome_empresa", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as ClienteRow[];
+    },
+  });
+}
+
+function formatBRL(v: number | null): string {
+  if (v === null || v === undefined) return "—";
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 function ClientesSection() {
-  return <PlaceholderSection titulo="Clientes" texto="Cadastro de clientes — em construção." />;
+  const qc = useQueryClient();
+  const { data: clientes = [], isLoading } = useClientesCadastro();
+  const [filtro, setFiltro] = useState<"todos" | "ativo" | "inativo">("todos");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<ClienteRow | null>(null);
+
+  const lista = useMemo(() => {
+    if (filtro === "todos") return clientes;
+    return clientes.filter((c) => c.status === filtro);
+  }, [clientes, filtro]);
+
+  const toggleStatus = useMutation({
+    mutationFn: async (c: ClienteRow) => {
+      const novo = c.status === "ativo" ? "inativo" : "ativo";
+      const { error } = await supabase.from("clientes").update({ status: novo }).eq("id", c.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clientes_cadastro"] });
+      qc.invalidateQueries({ queryKey: ["clientes"] });
+    },
+  });
+
+  function openNovo() {
+    setEditing(null);
+    setModalOpen(true);
+  }
+  function openEditar(c: ClienteRow) {
+    setEditing(c);
+    setModalOpen(true);
+  }
+
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-6">
+        <div>
+          <p
+            className="text-xs uppercase tracking-[0.32em] text-muted-foreground"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            Seção
+          </p>
+          <h2 className="mt-1 text-4xl text-foreground">Clientes</h2>
+        </div>
+        <PrimaryButton onClick={openNovo}>Adicionar cliente</PrimaryButton>
+      </div>
+      <GoldRule />
+
+      <div className="flex gap-2 mb-6" style={{ fontFamily: "var(--font-body)" }}>
+        {(["todos", "ativo", "inativo"] as const).map((f) => {
+          const active = filtro === f;
+          const label = f === "todos" ? "Todos" : f === "ativo" ? "Ativos" : "Inativos";
+          return (
+            <button
+              key={f}
+              onClick={() => setFiltro(f)}
+              className={`px-4 py-2 text-xs uppercase tracking-[0.22em] border transition-colors ${
+                active
+                  ? "bg-graphite text-cream border-graphite"
+                  : "bg-transparent text-graphite border-border hover:border-gold"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {isLoading ? (
+        <p className="italic text-muted-foreground">Carregando…</p>
+      ) : lista.length === 0 ? (
+        <p className="italic text-muted-foreground">Nenhum cliente encontrado.</p>
+      ) : (
+        <div className="border border-border bg-card overflow-x-auto">
+          <table className="w-full text-sm" style={{ fontFamily: "var(--font-body)" }}>
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-[0.22em] text-bordeaux border-b border-border">
+                <th className="px-4 py-3">Empresa</th>
+                <th className="px-4 py-3">Contato</th>
+                <th className="px-4 py-3">WhatsApp</th>
+                <th className="px-4 py-3">Cidade</th>
+                <th className="px-4 py-3">Plano</th>
+                <th className="px-4 py-3">Valor mensal</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lista.map((c) => (
+                <tr key={c.id} className="border-b border-border/60 last:border-0">
+                  <td className="px-4 py-3 text-foreground">{c.nome_empresa}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.nome_contato ?? "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.whatsapp ?? "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.cidade ?? "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.plano ?? "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatBRL(c.valor_mensal)}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex items-center px-3 py-1 text-xs uppercase tracking-[0.18em] ${
+                        c.status === "ativo" ? "bg-gold text-graphite" : "bg-graphite text-cream"
+                      }`}
+                    >
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button
+                      onClick={() => openEditar(c)}
+                      className="text-xs uppercase tracking-[0.22em] text-bordeaux hover:text-gold mr-4"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => toggleStatus.mutate(c)}
+                      disabled={toggleStatus.isPending}
+                      className="text-xs uppercase tracking-[0.22em] text-graphite hover:text-gold disabled:opacity-40"
+                    >
+                      {c.status === "ativo" ? "Inativar" : "Reativar"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {modalOpen && (
+        <ClienteFormModal
+          cliente={editing}
+          onClose={() => setModalOpen(false)}
+          onSaved={() => {
+            setModalOpen(false);
+            qc.invalidateQueries({ queryKey: ["clientes_cadastro"] });
+            qc.invalidateQueries({ queryKey: ["clientes"] });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+type ClienteFormState = {
+  nome_empresa: string;
+  status: string;
+  nome_contato: string;
+  responsavel: string;
+  whatsapp: string;
+  email: string;
+  instagram: string;
+  cidade: string;
+  plano: string;
+  valor_mensal: string;
+  dia_vencimento: string;
+  data_inicio: string;
+  data_cancelamento: string;
+  link_planilha: string;
+  observacoes: string;
+};
+
+function toFormState(c: ClienteRow | null): ClienteFormState {
+  return {
+    nome_empresa: c?.nome_empresa ?? "",
+    status: c?.status ?? "ativo",
+    nome_contato: c?.nome_contato ?? "",
+    responsavel: c?.responsavel ?? "",
+    whatsapp: c?.whatsapp ?? "",
+    email: c?.email ?? "",
+    instagram: c?.instagram ?? "",
+    cidade: c?.cidade ?? "",
+    plano: c?.plano ?? "",
+    valor_mensal: c?.valor_mensal != null ? String(c.valor_mensal) : "",
+    dia_vencimento: c?.dia_vencimento != null ? String(c.dia_vencimento) : "",
+    data_inicio: c?.data_inicio ?? "",
+    data_cancelamento: c?.data_cancelamento ?? "",
+    link_planilha: c?.link_planilha ?? "",
+    observacoes: c?.observacoes ?? "",
+  };
+}
+
+function ClienteFormModal({
+  cliente,
+  onClose,
+  onSaved,
+}: {
+  cliente: ClienteRow | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState<ClienteFormState>(() => toFormState(cliente));
+  const [nomeErr, setNomeErr] = useState<string | null>(null);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  function upd<K extends keyof ClienteFormState>(k: K, v: ClienteFormState[K]) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function handleSave() {
+    setSaveErr(null);
+    if (!form.nome_empresa.trim()) {
+      setNomeErr("Informe o nome da empresa.");
+      return;
+    }
+    setNomeErr(null);
+
+    const textOrNull = (v: string) => (v.trim() === "" ? null : v.trim());
+    const numOrNull = (v: string) => (v.trim() === "" ? null : Number(v));
+    const intOrNull = (v: string) => (v.trim() === "" ? null : Math.trunc(Number(v)));
+    const dateOrNull = (v: string) => (v.trim() === "" ? null : v);
+
+    const payload = {
+      nome_empresa: form.nome_empresa.trim(),
+      status: form.status,
+      nome_contato: textOrNull(form.nome_contato),
+      responsavel: textOrNull(form.responsavel),
+      whatsapp: textOrNull(form.whatsapp),
+      email: textOrNull(form.email),
+      instagram: textOrNull(form.instagram),
+      cidade: textOrNull(form.cidade),
+      plano: textOrNull(form.plano),
+      valor_mensal: numOrNull(form.valor_mensal),
+      dia_vencimento: intOrNull(form.dia_vencimento),
+      data_inicio: dateOrNull(form.data_inicio),
+      data_cancelamento: dateOrNull(form.data_cancelamento),
+      link_planilha: textOrNull(form.link_planilha),
+      observacoes: textOrNull(form.observacoes),
+    };
+
+    setSaving(true);
+    try {
+      if (cliente) {
+        const { error } = await supabase.from("clientes").update(payload).eq("id", cliente.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("clientes").insert(payload);
+        if (error) throw error;
+      }
+      onSaved();
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-graphite/60 px-4 py-10"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-3xl bg-cream border border-border shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="px-8 pt-8 pb-5 border-b border-border">
+          <p
+            className="text-xs uppercase tracking-[0.32em] text-bordeaux"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            Cadastro
+          </p>
+          <h3 className="mt-2 text-3xl text-foreground">
+            {cliente ? "Editar cliente" : "Novo cliente"}
+          </h3>
+          <div className="mt-4 h-px w-16 bg-gold" />
+        </header>
+
+        <div className="px-8 py-6 space-y-8" style={{ fontFamily: "var(--font-body)" }}>
+          <FormGroup titulo="Dados principais">
+            <Field label="Nome da empresa *" error={nomeErr}>
+              <input
+                type="text"
+                value={form.nome_empresa}
+                onChange={(e) => upd("nome_empresa", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+            <Field label="Status">
+              <select
+                value={form.status}
+                onChange={(e) => upd("status", e.target.value)}
+                className="form-input"
+              >
+                <option value="ativo">ativo</option>
+                <option value="inativo">inativo</option>
+              </select>
+            </Field>
+            <Field label="Nome do contato">
+              <input
+                type="text"
+                value={form.nome_contato}
+                onChange={(e) => upd("nome_contato", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+            <Field label="Responsável">
+              <input
+                type="text"
+                value={form.responsavel}
+                onChange={(e) => upd("responsavel", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+          </FormGroup>
+
+          <FormGroup titulo="Contato">
+            <Field label="WhatsApp">
+              <input
+                type="text"
+                value={form.whatsapp}
+                onChange={(e) => upd("whatsapp", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+            <Field label="Email">
+              <input
+                type="text"
+                value={form.email}
+                onChange={(e) => upd("email", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+            <Field label="Instagram">
+              <input
+                type="text"
+                value={form.instagram}
+                onChange={(e) => upd("instagram", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+            <Field label="Cidade">
+              <input
+                type="text"
+                value={form.cidade}
+                onChange={(e) => upd("cidade", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+          </FormGroup>
+
+          <FormGroup titulo="Contrato e financeiro">
+            <Field label="Plano">
+              <input
+                type="text"
+                value={form.plano}
+                onChange={(e) => upd("plano", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+            <Field label="Valor mensal (R$)">
+              <input
+                type="number"
+                step="0.01"
+                value={form.valor_mensal}
+                onChange={(e) => upd("valor_mensal", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+            <Field label="Dia de vencimento">
+              <input
+                type="number"
+                min={1}
+                max={31}
+                value={form.dia_vencimento}
+                onChange={(e) => upd("dia_vencimento", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+            <Field label="Data de início">
+              <input
+                type="date"
+                value={form.data_inicio}
+                onChange={(e) => upd("data_inicio", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+            <Field label="Data de cancelamento">
+              <input
+                type="date"
+                value={form.data_cancelamento}
+                onChange={(e) => upd("data_cancelamento", e.target.value)}
+                className="form-input"
+              />
+            </Field>
+          </FormGroup>
+
+          <FormGroup titulo="Outros">
+            <Field label="Link da planilha" full>
+              <input
+                type="text"
+                value={form.link_planilha}
+                onChange={(e) => upd("link_planilha", e.target.value)}
+                className="form-input"
+                placeholder="https://…"
+              />
+            </Field>
+            <Field label="Observações" full>
+              <textarea
+                value={form.observacoes}
+                onChange={(e) => upd("observacoes", e.target.value)}
+                rows={4}
+                className="form-input"
+              />
+            </Field>
+          </FormGroup>
+
+          {saveErr && (
+            <p className="text-sm text-bordeaux italic">{saveErr}</p>
+          )}
+        </div>
+
+        <footer className="px-8 py-5 border-t border-border flex items-center justify-end gap-4 bg-cream">
+          <button
+            onClick={onClose}
+            disabled={saving}
+            className="px-6 py-3 text-xs uppercase tracking-[0.22em] text-graphite hover:text-bordeaux disabled:opacity-40"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            Cancelar
+          </button>
+          <PrimaryButton onClick={handleSave} loading={saving}>
+            Salvar
+          </PrimaryButton>
+        </footer>
+      </div>
+
+      <style>{`
+        .form-input {
+          width: 100%;
+          background: var(--card, #fff);
+          border: 1px solid var(--border, #e5e5e5);
+          padding: 0.65rem 0.85rem;
+          font-family: var(--font-body);
+          font-size: 0.95rem;
+          color: inherit;
+        }
+        .form-input:focus {
+          outline: none;
+          border-color: var(--gold, #D4AF37);
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function FormGroup({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h4
+        className="text-xs uppercase tracking-[0.28em] text-bordeaux mb-4"
+        style={{ fontFamily: "var(--font-body)" }}
+      >
+        {titulo}
+      </h4>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+  error,
+  full,
+}: {
+  label: string;
+  children: React.ReactNode;
+  error?: string | null;
+  full?: boolean;
+}) {
+  return (
+    <div className={full ? "md:col-span-2" : ""}>
+      <label
+        className="block text-xs uppercase tracking-[0.22em] text-graphite/70 mb-2"
+        style={{ fontFamily: "var(--font-body)" }}
+      >
+        {label}
+      </label>
+      {children}
+      {error && (
+        <p className="mt-1 text-xs text-bordeaux italic" style={{ fontFamily: "var(--font-body)" }}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function EstrategiaSection() {
