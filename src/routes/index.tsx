@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { POLL_INTERVAL_MS, POLL_TIMEOUT_MS } from "@/config/webhooks";
 import { useRowAutosave } from "@/hooks/useRowAutosave";
-import logoAsset from "@/assets/logo.png.asset.json";
+import logoUrl from "@/assets/logo.png";
 
 export const Route = createFileRoute("/")({
   component: DashboardGate,
@@ -401,7 +401,7 @@ function Sidebar({ active, onChange }: { active: SecaoKey; onChange: (k: SecaoKe
     <aside className="w-64 shrink-0 bg-graphite text-cream min-h-screen flex flex-col">
       <div className="h-44 border-b border-cream/10 flex items-center justify-center px-6">
         <div className="w-32 h-32 overflow-hidden flex items-center justify-center">
-          <img src={logoAsset.url} alt="Logo" className="w-full h-full object-cover" />
+          <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
         </div>
       </div>
       <nav className="flex-1 px-6 py-8 space-y-1">
